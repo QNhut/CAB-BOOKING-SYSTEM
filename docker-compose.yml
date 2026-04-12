@@ -1,62 +1,382 @@
-version: '3.8'
-
 services:
-  db:
-    image: mysql:8.0
-    container_name: mysql_db
-    restart: always
+  # =========================
+  # CORE INFRA
+  # =========================
+  postgres:
+    image: postgres:16-alpine
+    container_name: taxi_postgres
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: mydatabase
-      MYSQL_USER: my_user
-      MYSQL_PASSWORD: my_password
+      POSTGRES_USER: ${POSTGRES_USER:-taxi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taxi_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-taxi_main}
+      TZ: Asia/Ho_Chi_Minh
     ports:
-      - "3306:3306"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+      # Nếu prod không muốn init mỗi lần, vẫn OK vì chỉ chạy lần đầu khi volume rỗng
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-uroot", "-proot_password"]
-      interval: 10s   # Kiểm tra mỗi 10 giây
-      timeout: 5s     # Quá 5 giây không phản hồi coi như lỗi
-      retries: 5      # Thử lại 5 lần trước khi báo Unhealthy
-    networks:
-      - cab_network
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taxi} -d ${POSTGRES_DB:-taxi_main}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [taxi_net]
 
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: phpmyadmin_gui
-    restart: always
+  redis:
+    image: redis:7-alpine
+    container_name: taxi_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "8080:80"
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks: [taxi_net]
+
+  kafka:
+    image: apache/kafka:4.1.1
+    container_name: taxi_kafka
+    restart: unless-stopped
+    ports:
+      - "${KAFKA_HOST_PORT:-9094}:9094"  # host access (nếu cần)
     environment:
-      PMA_HOST: db
-      PMA_USER: root
-      PMA_PASSWORD: root_password
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:9094
+      # PROD: sửa PLAINTEXT_HOST theo domain/ip thật nếu service ngoài host cần kết nối
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://${KAFKA_ADVERTISED_HOST:-localhost}:${KAFKA_HOST_PORT:-9094}
+
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    networks: [taxi_net]
+
+  kafka-init:
+    image: apache/kafka:4.1.1
+    container_name: taxi_kafka_init
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Waiting for Kafka to be ready..."
+        sleep 10
+        echo "Creating taxi.events topic..."
+        /opt/kafka/bin/kafka-topics.sh --create \
+          --bootstrap-server kafka:9092 \
+          --topic ${KAFKA_TOPIC:-taxi.events} \
+          --partitions ${KAFKA_PARTITIONS:-3} \
+          --replication-factor 1 \
+          --if-not-exists
+        echo "Topic created successfully!"
+        /opt/kafka/bin/kafka-topics.sh --list --bootstrap-server kafka:9092
     depends_on:
-      - db
-    networks:
-      - cab_network
+      kafka:
+        condition: service_healthy
+    networks: [taxi_net]
+    restart: "no"
+
+  # =========================
+  # BACKEND SERVICES (IMAGES)
+  # =========================
+  pricing-service:
+    image: ghcr.io/${IMAGE_REPO}/pricing-service:${IMAGE_TAG}
+    container_name: taxi_pricing
+    restart: unless-stopped
+    environment:
+      PORT: 8002
+      OSRM_BASE_URL: ${OSRM_BASE_URL:-https://router.project-osrm.org}
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${PRICING_PORT:-8002}:8002"
+    networks: [taxi_net]
+
+  auth-service:
+    image: ghcr.io/${IMAGE_REPO}/auth-service:${IMAGE_TAG}
+    container_name: taxi_auth
+    restart: unless-stopped
+    environment:
+      PORT: 8001
+      DATABASE_URL: ${AUTH_DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-86400}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-2592000}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${AUTH_PORT:-8001}:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [taxi_net]
+
+  booking-service:
+    image: ghcr.io/${IMAGE_REPO}/booking-service:${IMAGE_TAG}
+    container_name: taxi_booking
+    restart: unless-stopped
+    environment:
+      PORT: 8003
+      DATABASE_URL: ${BOOKING_DATABASE_URL}
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-taxi.events}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${BOOKING_PORT:-8003}:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    networks: [taxi_net]
+
+  booking-worker:
+    image: ghcr.io/${IMAGE_REPO}/booking-service:${IMAGE_TAG}
+    container_name: taxi_booking_worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${BOOKING_DATABASE_URL}
+      OUTBOX_POLL_MS: ${OUTBOX_POLL_MS:-1000}
+      OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE:-20}
+      TZ: Asia/Ho_Chi_Minh
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-taxi.events}
+    # NOTE: image booking-service phải có script "worker"
+    command: ["npm", "run", "worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    networks: [taxi_net]
+
+  booking-consumer:
+    image: ghcr.io/${IMAGE_REPO}/booking-service:${IMAGE_TAG}
+    container_name: taxi_booking_consumer
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${BOOKING_DATABASE_URL}
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-taxi.events}
+      KAFKA_GROUP_ID: ${BOOKING_CONSUMER_GROUP_ID:-booking-service}
+      TZ: Asia/Ho_Chi_Minh
+    # NOTE: image booking-service phải có file consumer.js hoặc npm script
+    command: ["node", "consumer.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    networks: [taxi_net]
+
+  driver-service:
+    image: ghcr.io/${IMAGE_REPO}/driver-service:${IMAGE_TAG}
+    container_name: taxi_driver
+    restart: unless-stopped
+    environment:
+      PORT: 8004
+      REDIS_URL: redis://redis:6379
+      HB_TTL_SEC: ${HB_TTL_SEC:-60}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${DRIVER_PORT:-8004}:8004"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [taxi_net]
+
+  ride-service:
+    image: ghcr.io/${IMAGE_REPO}/ride-service:${IMAGE_TAG}
+    container_name: taxi_ride
+    restart: unless-stopped
+    environment:
+      PORT: 8005
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-taxi.events}
+      KAFKA_GROUP_ID: ${RIDE_GROUP_ID:-ride-service}
+      TZ: Asia/Ho_Chi_Minh
+      DATABASE_URL: ${RIDE_DATABASE_URL}
+      DRIVER_BASE_URL: http://driver-service:8004
+      BOOKING_BASE_URL: http://booking-service:8003
+      GEO_BASE_URL: http://geo-service:8007
+      REDIS_URL: redis://redis:6379
+      OFFER_TIMEOUT_SEC: ${OFFER_TIMEOUT_SEC:-10}
+    ports:
+      - "${RIDE_PORT:-8005}:8005"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks: [taxi_net]
+
+  notification-service:
+    image: ghcr.io/${IMAGE_REPO}/notification-service:${IMAGE_TAG}
+    container_name: taxi_notification
+    restart: unless-stopped
+    environment:
+      PORT: 8006
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-taxi.events}
+      KAFKA_GROUP_ID: ${NOTIF_GROUP_ID:-notification-service}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${NOTIF_PORT:-8006}:8006"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    networks: [taxi_net]
+
+  geo-service:
+    image: ghcr.io/${IMAGE_REPO}/geo-service:${IMAGE_TAG}
+    container_name: taxi_geo
+    restart: unless-stopped
+    environment:
+      PORT: 8007
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY}
+      GEO_DEFAULT_LANG: ${GEO_DEFAULT_LANG:-vi}
+      GEO_DEFAULT_COUNTRY: ${GEO_DEFAULT_COUNTRY:-vn}
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${GEO_PORT:-8007}:8007"
+    networks: [taxi_net]
 
   payment-service:
-    build:
-      context: ./services/payment-service
-      dockerfile: Dockerfile
-    container_name: payment-service
-    restart: always
-    env_file:
-      - ./services/payment-service/.env 
+    image: ghcr.io/${IMAGE_REPO}/payment-service:${IMAGE_TAG}
+    container_name: taxi_payment
+    restart: unless-stopped
+    environment:
+      PORT: 8888
+      NODE_ENV: production
+      TZ: Asia/Ho_Chi_Minh
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-taxi.events}
     ports:
-      - "8088:3000"
+      - "${PAYMENT_PORT:-8888}:8888"
     depends_on:
-      db:
+      kafka:
         condition: service_healthy
-    networks:
-      - cab_network
-    
-volumes:
-  mysql_data:
+      kafka-init:
+        condition: service_completed_successfully
+    networks: [taxi_net]
+
+  api-gateway:
+    image: ghcr.io/${IMAGE_REPO}/api-gateway:${IMAGE_TAG}
+    container_name: taxi_api_gateway
+    restart: unless-stopped
+    environment:
+      PORT: 8000
+      AUTH_URL: http://auth-service:8001
+      BOOKING_URL: http://booking-service:8003
+      PRICING_URL: http://pricing-service:8002
+      DRIVER_URL: http://driver-service:8004
+      RIDE_URL: http://ride-service:8005
+      NOTIF_URL: http://notification-service:8006
+      GEO_URL: http://geo-service:8007
+      PAYMENT_URL: http://payment-service:8888
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "${GATEWAY_PORT:-8000}:8000"
+    depends_on:
+      auth-service:
+        condition: service_started
+      booking-service:
+        condition: service_started
+      pricing-service:
+        condition: service_started
+    networks: [taxi_net]
+
+  # =========================
+  # OPTIONAL (PROD THƯỜNG TẮT)
+  # =========================
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: taxi_pgadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+  #     PGADMIN_CONFIG_SERVER_MODE: 'True'
+  #   ports:
+  #     - "${PGADMIN_PORT:-5050}:80"
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #     - ./infra/pgadmin/servers.json:/pgadmin4/servers.json:ro
+  #     - ./infra/pgadmin/pgpass:/pgpass:ro
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks: [taxi_net]
+
+  # kafka-ui:
+  #   image: provectuslabs/kafka-ui:latest
+  #   container_name: taxi_kafka_ui
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${KAFKA_UI_PORT:-8080}:8080"
+  #   environment:
+  #     KAFKA_CLUSTERS_0_NAME: taxi-prod
+  #     KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+  #   depends_on:
+  #     kafka:
+  #       condition: service_healthy
+  #   networks: [taxi_net]
+
+  # driver-client:
+  #   image: ghcr.io/${IMAGE_REPO}/driver-client:${IMAGE_TAG}
+  #   container_name: taxi_driver_client_d1
+  #   restart: unless-stopped
+  #   environment:
+  #     KAFKA_BROKERS: kafka:9092
+  #     KAFKA_TOPIC: ${KAFKA_TOPIC:-taxi.events}
+  #     KAFKA_GROUP_ID: ${DRIVER_CLIENT_GROUP_ID:-driver-client}
+  #     DRIVER_ID: d1
+  #     RIDE_BASE_URL: http://ride-service:8005
+  #     TZ: Asia/Ho_Chi_Minh
+  #   depends_on:
+  #     kafka:
+  #       condition: service_healthy
+  #     kafka-init:
+  #       condition: service_completed_successfully
+  #   networks: [taxi_net]
+
 
 networks:
-  cab_network:
+  taxi_net:
     driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:

@@ -1,7 +1,8 @@
 const config = require('config');
 const crypto = require("crypto");
 const qs = require('qs');
-const db = require('../../config/database'); // Import kết nối DB của bạn
+const pendingStore = require('../../pending-store');
+const { publishPaymentEvent } = require('../../kafka');
 
 function sortObject(obj) {
     let sorted = {};
@@ -22,9 +23,11 @@ const vnpayIpn = async (req, res, next) => {
     let vnp_Params = req.query;
     let secureHash = vnp_Params['vnp_SecureHash'];
 
-    let orderId = vnp_Params['vnp_TxnRef'];
-    let rspCode = vnp_Params['vnp_ResponseCode'];
-    let vnp_Amount = vnp_Params['vnp_Amount'];
+    let orderId  = vnp_Params['vnp_TxnRef'];          // == bookingId passed from frontend
+    let rspCode  = vnp_Params['vnp_ResponseCode'];
+    let vnpAmount = Number(vnp_Params['vnp_Amount']); // VNPay sends amount * 100
+    let transactionNo = vnp_Params['vnp_TransactionNo'] || '';
+    let bankCode  = vnp_Params['vnp_BankCode'] || '';
 
     delete vnp_Params['vnp_SecureHash'];
     delete vnp_Params['vnp_SecureHashType'];
@@ -35,50 +38,49 @@ const vnpayIpn = async (req, res, next) => {
     let hmac = crypto.createHmac("sha512", secretKey);
     let signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex");
 
-    if (secureHash === signed) { // 1. Kiểm tra checksum
-        try {
-            // 2. Kiểm tra đơn hàng trong DB
-            // Truy vấn lấy đơn hàng theo orderID
-            const rows = await db.query('SELECT * FROM Orders WHERE orderID = ?', [orderId]);
-            const order = rows[0]; // Lấy đơn hàng đầu tiên tìm được
-
-            if (order) {
-                // 3. Kiểm tra số tiền (VNPAY gửi sang đã nhân 100)
-                let amountInDb = order.amount * 100;
-                if (amountInDb == vnp_Amount) {
-                    
-                    // 4. Kiểm tra trạng thái hiện tại (Chỉ xử lý nếu đang là 'pending')
-                    if (order.status === 'pending') {
-                        if (rspCode == "00") {
-                            // Thành công: Cập nhật status sang 'success'
-                            await db.query('UPDATE Orders SET status = ? WHERE orderID = ?', ['success', orderId]);
-                            console.log(`--- Đơn hàng ${orderId} đã được cập nhật thành công ---`);
-                            res.status(200).json({ RspCode: '00', Message: 'Success' });
-                        } else {
-                            // Thất bại: Cập nhật status sang 'fail'
-                            await db.query('UPDATE Orders SET status = ? WHERE orderID = ?', ['fail', orderId]);
-                            console.log(`--- Đơn hàng ${orderId} đã được cập nhật thành công ---`); 
-                            res.status(200).json({ RspCode: '00', Message: 'Success' });
-                        }
-                    } else {
-                        // Đơn hàng đã được cập nhật trước đó rồi (ví dụ do khách reload trang)
-                        res.status(200).json({ RspCode: '02', Message: 'This order has been updated to the payment status' });
-                    }
-                } else {
-                    res.status(200).json({ RspCode: '04', Message: 'Amount invalid' });
-                }
-            } else {
-                res.status(200).json({ RspCode: '01', Message: 'Order not found' });
-            }
-        } catch (error) {
-            console.error('Lỗi Database tại IPN:', error.message);
-            res.status(200).json({ RspCode: '99', Message: 'Unknown error' });
-        }
-    } else {
-        res.status(200).json({ RspCode: '97', Message: 'Checksum failed' });
+    // 1. Verify HMAC signature
+    if (secureHash !== signed) {
+        console.warn(`[IPN] checksum failed for orderId=${orderId}`);
+        return res.status(200).json({ RspCode: '97', Message: 'Checksum failed' });
     }
+
+    // 2. Look up userId from in-memory store (saved when createPaymentUrl was called)
+    const pending = pendingStore.get(orderId);
+    const userId  = pending?.userId || null;
+    const amountVnd = Math.round(vnpAmount / 100); // convert back from VNPay x100 format
+
+    const success = (rspCode === '00');
+    const eventType = success ? 'PAYMENT_COMPLETED' : 'PAYMENT_FAILED';
+
+    // 3. Publish Kafka event so notification-service can push SSE to the user
+    try {
+        await publishPaymentEvent(eventType, {
+            orderId,
+            userId,
+            amount: amountVnd,
+            currency: 'VND',
+            rspCode,
+            transactionNo,
+            bankCode,
+            paidAt: new Date().toISOString(),
+        });
+
+        if (success) {
+            pendingStore.remove(orderId); // clean up after successful payment
+            console.log(`[IPN] PAYMENT_COMPLETED orderId=${orderId} userId=${userId} amount=${amountVnd}`);
+        } else {
+            console.log(`[IPN] PAYMENT_FAILED orderId=${orderId} rspCode=${rspCode}`);
+        }
+    } catch (kafkaErr) {
+        // Don't let Kafka errors fail the IPN — VNPay will retry if we don't respond 00
+        console.error('[IPN] Kafka publish error:', kafkaErr.message);
+    }
+
+    // 4. Always respond 00 to VNPay so it stops retrying
+    return res.status(200).json({ RspCode: '00', Message: 'Success' });
 };
 
+module.exports = { vnpayIpn };
 module.exports = {
     vnpayIpn
 };

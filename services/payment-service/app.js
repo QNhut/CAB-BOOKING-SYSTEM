@@ -8,7 +8,7 @@ var order = require('./routes/order');
 
 var app = express();
 const cors = require("cors");
-app.use(cors({ origin: "http://localhost:5173" })); // nếu React chạy 3000
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

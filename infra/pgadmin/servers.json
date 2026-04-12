@@ -1,0 +1,16 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Taxi DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "taxi_main",
+      "Username": "taxi",
+      "Password": "taxi_pass",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpass",
+      "Favorite": true
+    }
+  }
+}

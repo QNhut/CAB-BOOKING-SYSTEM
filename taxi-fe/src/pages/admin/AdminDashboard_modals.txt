@@ -1,0 +1,33 @@
+
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold mb-4">Edit {editingUser.role}</h3>
+            <div className="space-y-3">
+              <input type="text" placeholder="Full Name" value={editingUser.full_name || ""}
+                onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
+                className="w-full p-2 border rounded" />
+              <input type="text" placeholder="Phone" value={editingUser.phone || ""}
+                onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
+                className="w-full p-2 border rounded" />
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => updateUser(editingUser)} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+              <button onClick={() => setEditingUser(null)} className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteUserId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold mb-4">Delete User?</h3>
+            <p className="text-gray-600 mb-6">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => deleteUser(deleteUserId)} className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+              <button onClick={() => setDeleteUserId(null)} className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}

@@ -1,9 +1,0 @@
-  driver-service:
-    build: ./services/driver-service
-    ports:
-      - "3003:3003"
-    environment:
-      - DATABASE_URL=postgres://user:password@postgres:5432/cab_db
-      - JWT_SECRET=your_jwt_secret
-    depends_on:
-      - postgres

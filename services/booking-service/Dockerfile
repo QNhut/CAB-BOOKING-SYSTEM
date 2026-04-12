@@ -1,20 +1,23 @@
-# 1. Base image
-FROM node:18-alpine
+# ---- Build stage (cài deps gọn) ----
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev
 
-# 2. Working directory trong container
+# ---- Runtime stage ----
+FROM node:20-alpine
 WORKDIR /app
 
-# 3. Copy package files
-COPY package*.json ./
+ENV NODE_ENV=production
 
-# 4. Cài dependencies
-RUN npm install --only=production
+# Copy node_modules từ stage deps
+COPY --from=deps /app/node_modules ./node_modules
 
-# 5. Copy source code
-COPY src ./src
+# Copy source
+COPY . .
 
-# 6. Expose port
-EXPOSE 3001
+# App port
+EXPOSE 8002
 
-# 7. Start service
-CMD ["npm", "start"]
+# Start
+CMD ["node", "index.js"]
