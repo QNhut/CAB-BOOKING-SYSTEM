@@ -1,8 +1,6 @@
 import { Kafka } from "kafkajs";
 import { Pool } from "pg";
 import crypto from "crypto";
-import dotenv from "dotenv";
-dotenv.config();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 

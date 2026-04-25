@@ -1,13 +1,10 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import { createClient } from "redis";
 import jwt from "jsonwebtoken";
 import { createLogger } from "../../shared/logger.js";
 
 const log = createLogger("driver-service");
-
-dotenv.config();
 
 const app = express();
 app.use(cors());

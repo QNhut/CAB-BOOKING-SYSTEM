@@ -1,9 +1,5 @@
-import dotenv from "dotenv";
 import { Pool } from "pg";
 import { createProducer, KAFKA_BOOKING_TOPIC } from "./kafka.js";
-
-
-dotenv.config();
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const POLL_MS = Number(process.env.OUTBOX_POLL_MS || 1000);

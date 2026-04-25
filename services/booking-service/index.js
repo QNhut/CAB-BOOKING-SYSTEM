@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import { Pool } from "pg";
 import fs from "fs";
 import path from "path";
@@ -10,8 +9,6 @@ import { Kafka } from "kafkajs";
 import { createLogger } from "../../shared/logger.js";
 
 const log = createLogger("booking-service");
-
-dotenv.config();
 
 const app = express();
 app.use(cors());

@@ -4,12 +4,12 @@ services:
     container_name: taxi_pricing_dev
     working_dir: /app
     environment:
-      PORT: 8002
-      OSRM_BASE_URL: https://router.project-osrm.org
-      REDIS_URL: redis://redis:6379
-      TZ: Asia/Ho_Chi_Minh
+      PORT: ${PRICING_PORT}
+      OSRM_BASE_URL: ${OSRM_BASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      TZ: ${TZ}
     ports:
-      - "8002:8002"
+      - "${PRICING_PORT}:${PRICING_PORT}"
     volumes:
       - ./services/pricing-service:/app
       - pricing_node_modules:/app/node_modules
@@ -24,15 +24,15 @@ services:
     container_name: taxi_booking_dev
     working_dir: /app
     environment:
-      PORT: 8003
-      DATABASE_URL: postgres://taxi:taxi_pass@postgres:5432/taxi_main
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_BOOKING_TOPIC: taxi.bookings
-      KAFKA_RIDE_TOPIC: taxi.rides
-      JWT_SECRET: dev-secret-change-in-production-please
-      TZ: Asia/Ho_Chi_Minh
+      PORT: ${BOOKING_PORT}
+      DATABASE_URL: ${BOOKING_DATABASE_URL}
+      KAFKA_BROKERS: ${KAFKA_BROKERS}
+      KAFKA_BOOKING_TOPIC: ${KAFKA_BOOKING_TOPIC}
+      KAFKA_RIDE_TOPIC: ${KAFKA_RIDE_TOPIC}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ}
     ports:
-      - "8003:8003"
+      - "${BOOKING_PORT}:${BOOKING_PORT}"
     volumes:
       - ./services/booking-service:/app
       - ./shared:/shared
@@ -52,13 +52,13 @@ services:
     container_name: taxi_booking_worker_dev
     working_dir: /app
     environment:
-      DATABASE_URL: postgres://taxi:taxi_pass@postgres:5432/taxi_main
-      OUTBOX_POLL_MS: 1000
-      OUTBOX_BATCH_SIZE: 20
-      TZ: Asia/Ho_Chi_Minh
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_BOOKING_TOPIC: taxi.bookings
-      KAFKA_RIDE_TOPIC: taxi.rides
+      DATABASE_URL: ${BOOKING_DATABASE_URL}
+      OUTBOX_POLL_MS: ${OUTBOX_POLL_MS}
+      OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE}
+      TZ: ${TZ}
+      KAFKA_BROKERS: ${KAFKA_BROKERS}
+      KAFKA_BOOKING_TOPIC: ${KAFKA_BOOKING_TOPIC}
+      KAFKA_RIDE_TOPIC: ${KAFKA_RIDE_TOPIC}
     volumes:
       - ./services/booking-service:/app
       - booking_node_modules:/app/node_modules
@@ -77,15 +77,15 @@ services:
     container_name: taxi_auth_dev
     working_dir: /app
     environment:
-      PORT: 8001
-      DATABASE_URL: postgres://taxi:taxi_pass@postgres:5432/auth_db
-      JWT_SECRET: dev-secret-change-in-production-please
-      JWT_ACCESS_TTL: 86400
-      JWT_REFRESH_TTL: 2592000
-      BCRYPT_ROUNDS: 10
-      TZ: Asia/Ho_Chi_Minh
+      PORT: ${AUTH_PORT}
+      DATABASE_URL: ${AUTH_DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS}
+      TZ: ${TZ}
     ports:
-      - "8001:8001"
+      - "${AUTH_PORT}:${AUTH_PORT}"
     volumes:
       - ./services/auth-service:/app
       - ./shared:/shared
@@ -101,17 +101,17 @@ services:
     container_name: taxi_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: taxi
-      POSTGRES_PASSWORD: taxi_pass
-      POSTGRES_DB: taxi_main
-      TZ: Asia/Ho_Chi_Minh
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U taxi -d taxi_main"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -123,7 +123,7 @@ services:
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -138,12 +138,12 @@ services:
     container_name: taxi_pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@taxi.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
     ports:
-      - "5050:80"
+      - "${PGADMIN_PORT}:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
       - ./infra/pgadmin/servers.json:/pgadmin4/servers.json:ro
@@ -223,20 +223,24 @@ services:
     container_name: taxi_ride_dev
     working_dir: /app
     ports:
-      - "8005:8005"
+      - "${RIDE_PORT:-8005}:${RIDE_PORT:-8005}"
     environment:
-      PORT: 8005
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_BOOKING_TOPIC: taxi.bookings
-      KAFKA_RIDE_TOPIC: taxi.rides
-      KAFKA_GROUP_ID: ride-service
-      TZ: Asia/Ho_Chi_Minh
-      DATABASE_URL: postgres://taxi:taxi_pass@postgres:5432/ride_db
-      DRIVER_BASE_URL: http://driver-service:8004
-      BOOKING_BASE_URL: http://booking-service:8003
-      GEO_BASE_URL: http://geo-service:8007
-      REDIS_URL: redis://redis:6379
-      OFFER_TIMEOUT_SEC: 10
+      PORT: ${RIDE_PORT:-8005}
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
+      KAFKA_BOOKING_TOPIC: ${KAFKA_BOOKING_TOPIC:-taxi.bookings}
+      KAFKA_RIDE_TOPIC: ${KAFKA_RIDE_TOPIC:-taxi.rides}
+      KAFKA_GROUP_ID: ${RIDE_GROUP_ID:-ride-service}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+      DATABASE_URL: ${RIDE_DATABASE_URL:-postgres://taxi:taxi_pass@postgres:5432/ride_db}
+      DRIVER_BASE_URL: ${DRIVER_URL:-http://driver-service:8004}
+      BOOKING_BASE_URL: ${BOOKING_URL:-http://booking-service:8003}
+      GEO_BASE_URL: ${GEO_URL:-http://geo-service:8007}
+      AUTH_BASE_URL: ${AUTH_URL:-http://auth-service:8001}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      OFFER_TIMEOUT_SEC: ${OFFER_TIMEOUT_SEC:-10}
+      DRIVER_RETRY_INTERVAL_SEC: ${DRIVER_RETRY_INTERVAL_SEC:-10}
+      DRIVER_RETRY_MAX_ATTEMPTS: ${DRIVER_RETRY_MAX_ATTEMPTS:-12}
+      JWT_SECRET: ${JWT_SECRET}
     volumes:
       - ./services/ride-service:/app
       - ./shared:/shared
@@ -255,13 +259,14 @@ services:
     container_name: taxi_driver_dev
     working_dir: /app
     environment:
-      PORT: 8004
-      REDIS_URL: redis://redis:6379
-      HB_TTL_SEC: 60
-      JWT_SECRET: dev-secret-change-in-production-please
-      TZ: Asia/Ho_Chi_Minh
+      PORT: ${DRIVER_PORT:-8004}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      HB_TTL_SEC: ${HB_TTL_SEC:-60}
+      STATE_TTL_SEC: ${STATE_TTL_SEC:-1800}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
-      - "8004:8004"
+      - "${DRIVER_PORT:-8004}:${DRIVER_PORT:-8004}"
     volumes:
       - ./services/driver-service:/app
       - ./shared:/shared
@@ -277,10 +282,10 @@ services:
     container_name: taxi_booking_consumer
     working_dir: /app
     environment:
-      DATABASE_URL: postgres://taxi:taxi_pass@postgres:5432/taxi_main
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_RIDE_TOPIC: taxi.rides
-      KAFKA_GROUP_ID: booking-service
+      DATABASE_URL: ${BOOKING_DATABASE_URL:-postgres://taxi:taxi_pass@postgres:5432/taxi_main}
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
+      KAFKA_RIDE_TOPIC: ${KAFKA_RIDE_TOPIC:-taxi.rides}
+      KAFKA_GROUP_ID: ${BOOKING_CONSUMER_GROUP_ID:-booking-service}
     volumes:
       - ./services/booking-service:/app
       - booking_node_modules:/app/node_modules
@@ -299,11 +304,11 @@ services:
     container_name: taxi_driver_client_d1
     working_dir: /app
     environment:
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_RIDE_TOPIC: taxi.rides
-      KAFKA_GROUP_ID: driver-client
-      DRIVER_ID: d1
-      RIDE_BASE_URL: http://ride-service:8005
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
+      KAFKA_RIDE_TOPIC: ${KAFKA_RIDE_TOPIC:-taxi.rides}
+      KAFKA_GROUP_ID: ${DRIVER_CLIENT_GROUP_ID:-driver-client}
+      DRIVER_ID: ${DRIVER_CLIENT_ID:-d1}
+      RIDE_BASE_URL: ${RIDE_URL:-http://ride-service:8005}
     volumes:
       - ./services/driver-client:/app
       - driver_client_node_modules:/app/node_modules
@@ -320,16 +325,16 @@ services:
     container_name: taxi_notification_dev
     working_dir: /app
     environment:
-      PORT: 8006
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_BOOKING_TOPIC: taxi.bookings
-      KAFKA_RIDE_TOPIC: taxi.rides
-      KAFKA_PAYMENT_TOPIC: taxi.payments
-      KAFKA_GROUP_ID: notification-service
-      JWT_SECRET: dev-secret-change-in-production-please
-      TZ: Asia/Ho_Chi_Minh
+      PORT: ${NOTIF_PORT:-8006}
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
+      KAFKA_BOOKING_TOPIC: ${KAFKA_BOOKING_TOPIC:-taxi.bookings}
+      KAFKA_RIDE_TOPIC: ${KAFKA_RIDE_TOPIC:-taxi.rides}
+      KAFKA_PAYMENT_TOPIC: ${KAFKA_PAYMENT_TOPIC:-taxi.payments}
+      KAFKA_GROUP_ID: ${NOTIF_GROUP_ID:-notification-service}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
-      - "8006:8006"
+      - "${NOTIF_PORT:-8006}:${NOTIF_PORT:-8006}"
     volumes:
       - ./services/notification-service:/app
       - notification_node_modules:/app/node_modules
@@ -344,12 +349,12 @@ services:
     container_name: taxi_geo_dev
     working_dir: /app
     environment:
-      PORT: 8007
-      GEOAPIFY_API_KEY: 67d9d41e69eb4504a3aa7bd282861b5b
-      GEO_DEFAULT_LANG: vi
-      GEO_DEFAULT_COUNTRY: vn
+      PORT: ${GEO_PORT:-8007}
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY}
+      GEO_DEFAULT_LANG: ${GEO_DEFAULT_LANG:-vi}
+      GEO_DEFAULT_COUNTRY: ${GEO_DEFAULT_COUNTRY:-vn}
     ports:
-      - "8007:8007"
+      - "${GEO_PORT:-8007}:${GEO_PORT:-8007}"
     volumes:
       - ./services/geo-service:/app
       - geo_node_modules:/app/node_modules
@@ -362,13 +367,13 @@ services:
     container_name: taxi_payment_dev
     working_dir: /app
     environment:
-      PORT: 8888
-      NODE_ENV: development
-      TZ: Asia/Ho_Chi_Minh
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_PAYMENT_TOPIC: taxi.payments
+      PORT: ${PAYMENT_PORT:-8888}
+      NODE_ENV: ${NODE_ENV:-development}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
+      KAFKA_PAYMENT_TOPIC: ${KAFKA_PAYMENT_TOPIC:-taxi.payments}
     ports:
-      - "8888:8888"
+      - "${PAYMENT_PORT:-8888}:${PAYMENT_PORT:-8888}"
     volumes:
       - ./services/payment-service:/app
       - payment_node_modules:/app/node_modules
@@ -384,16 +389,18 @@ services:
     container_name: taxi_frontend_dev
     working_dir: /app
     environment:
-      VITE_AUTH_URL: http://localhost:8000
-      VITE_BOOKING_URL: http://localhost:8000
-      VITE_PRICING_URL: http://localhost:8000
-      VITE_DRIVER_URL: http://localhost:8000
-      VITE_RIDE_URL: http://localhost:8000
-      VITE_NOTIFICATION_URL: http://localhost:8000
-      VITE_GEO_URL: http://localhost:8000
-      VITE_PAYMENT_URL: http://localhost:8000
+      VITE_AUTH_URL: ${VITE_AUTH_URL:-http://localhost:8000}
+      VITE_BOOKING_URL: ${VITE_BOOKING_URL:-http://localhost:8000}
+      VITE_PRICING_URL: ${VITE_PRICING_URL:-http://localhost:8000}
+      VITE_DRIVER_URL: ${VITE_DRIVER_URL:-http://localhost:8000}
+      VITE_RIDE_URL: ${VITE_RIDE_URL:-http://localhost:8000}
+      VITE_NOTIFICATION_URL: ${VITE_NOTIFICATION_URL:-http://localhost:8000}
+      VITE_GEO_URL: ${VITE_GEO_URL:-http://localhost:8000}
+      VITE_PAYMENT_URL: ${VITE_PAYMENT_URL:-http://localhost:8000}
+      VITE_ETA_URL: ${VITE_ETA_URL:-http://localhost:8000}
+      VITE_REVIEW_URL: ${VITE_REVIEW_URL:-http://localhost:8000}
     ports:
-      - "5173:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     volumes:
       - ./taxi-fe:/app
       - frontend_node_modules:/app/node_modules
@@ -406,21 +413,22 @@ services:
     container_name: taxi_api_gateway
     working_dir: /app
     environment:
-      PORT: 8000
-      AUTH_URL: http://auth-service:8001
-      BOOKING_URL: http://booking-service:8003
-      PRICING_URL: http://pricing-service:8002
-      DRIVER_URL: http://driver-service:8004
-      RIDE_URL: http://ride-service:8005
-      NOTIF_URL: http://notification-service:8006
-      GEO_URL: http://geo-service:8007
-      PAYMENT_URL: http://payment-service:8888
-      ETA_URL: http://eta-service:8009
-      FRAUD_URL: http://fraud-service:8010
-      REVIEW_URL: http://review-service:8011
-      AGENT_URL: http://agent-service:8012
+      PORT: ${API_GATEWAY_PORT:-8000}
+      AUTH_URL: ${AUTH_URL:-http://auth-service:8001}
+      BOOKING_URL: ${BOOKING_URL:-http://booking-service:8003}
+      PRICING_URL: ${PRICING_URL:-http://pricing-service:8002}
+      DRIVER_URL: ${DRIVER_URL:-http://driver-service:8004}
+      RIDE_URL: ${RIDE_URL:-http://ride-service:8005}
+      NOTIF_URL: ${NOTIF_URL:-http://notification-service:8006}
+      GEO_URL: ${GEO_URL:-http://geo-service:8007}
+      PAYMENT_URL: ${PAYMENT_URL:-http://payment-service:8888}
+      ETA_URL: ${ETA_URL:-http://eta-service:8009}
+      FRAUD_URL: ${FRAUD_URL:-http://fraud-service:8010}
+      REVIEW_URL: ${REVIEW_URL:-http://review-service:8011}
+      AGENT_URL: ${AGENT_URL:-http://agent-service:8012}
+      USER_URL: ${USER_URL:-http://user-service:8013}
     ports:
-      - "8000:8000"
+      - "${API_GATEWAY_PORT:-8000}:${API_GATEWAY_PORT:-8000}"
     volumes:
       - ./api-gateway:/app
       - api_gateway_node_modules:/app/node_modules
@@ -433,11 +441,11 @@ services:
     container_name: taxi_eta_dev
     working_dir: /app
     environment:
-      PORT: 8009
-      REDIS_URL: redis://redis:6379
-      TZ: Asia/Ho_Chi_Minh
+      PORT: ${ETA_PORT:-8009}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
-      - "8009:8009"
+      - "${ETA_PORT:-8009}:${ETA_PORT:-8009}"
     volumes:
       - ./services/eta-service:/app
       - eta_node_modules:/app/node_modules
@@ -453,12 +461,12 @@ services:
     container_name: taxi_fraud_dev
     working_dir: /app
     environment:
-      PORT: 8010
-      REDIS_URL: redis://redis:6379
-      FRAUD_THRESHOLD: "0.7"
-      TZ: Asia/Ho_Chi_Minh
+      PORT: ${FRAUD_PORT:-8010}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      FRAUD_THRESHOLD: ${FRAUD_THRESHOLD:-0.7}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
-      - "8010:8010"
+      - "${FRAUD_PORT:-8010}:${FRAUD_PORT:-8010}"
     volumes:
       - ./services/fraud-service:/app
       - fraud_node_modules:/app/node_modules
@@ -474,11 +482,11 @@ services:
     container_name: taxi_review_dev
     working_dir: /app
     environment:
-      PORT: 8011
-      DATABASE_URL: postgres://taxi:taxi_pass@postgres:5432/taxi_main
-      TZ: Asia/Ho_Chi_Minh
+      PORT: ${REVIEW_PORT:-8011}
+      DATABASE_URL: ${REVIEW_DATABASE_URL:-postgres://taxi:taxi_pass@postgres:5432/taxi_main}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
-      - "8011:8011"
+      - "${REVIEW_PORT:-8011}:${REVIEW_PORT:-8011}"
     volumes:
       - ./services/review-service:/app
       - review_node_modules:/app/node_modules
@@ -494,15 +502,15 @@ services:
     container_name: taxi_agent_dev
     working_dir: /app
     environment:
-      PORT: 8012
-      REDIS_URL: redis://redis:6379
-      ETA_URL: http://eta-service:8009
-      PRICING_URL: http://pricing-service:8002
-      FRAUD_URL: http://fraud-service:8010
-      DRIVER_URL: http://driver-service:8004
-      TZ: Asia/Ho_Chi_Minh
+      PORT: ${AGENT_PORT:-8012}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      ETA_URL: ${ETA_URL:-http://eta-service:8009}
+      PRICING_URL: ${PRICING_URL:-http://pricing-service:8002}
+      FRAUD_URL: ${FRAUD_URL:-http://fraud-service:8010}
+      DRIVER_URL: ${DRIVER_URL:-http://driver-service:8004}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
-      - "8012:8012"
+      - "${AGENT_PORT:-8012}:${AGENT_PORT:-8012}"
     volumes:
       - ./services/agent-service:/app
       - ./shared:/shared
@@ -518,12 +526,12 @@ services:
     container_name: taxi_user_dev
     working_dir: /app
     environment:
-      PORT: 8013
-      DATABASE_URL: postgres://taxi:taxi_pass@postgres:5432/taxi_main
-      JWT_SECRET: dev-secret-change-in-production-please
-      TZ: Asia/Ho_Chi_Minh
+      PORT: ${USER_PORT:-8013}
+      DATABASE_URL: ${USER_DATABASE_URL:-postgres://taxi:taxi_pass@postgres:5432/taxi_main}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
-      - "8013:8013"
+      - "${USER_PORT:-8013}:${USER_PORT:-8013}"
     volumes:
       - ./services/user-service:/app
       - ./shared:/shared

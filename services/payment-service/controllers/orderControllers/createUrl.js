@@ -2,9 +2,7 @@ const moment = require('moment');
 const config = require('config');
 const querystring = require('qs');
 const crypto = require("crypto");
-const dotenv = require('dotenv');
 const pendingStore = require('../../pending-store');
-dotenv.config();
 
 // Hàm phụ trợ sortObject
 function sortObject(obj) {
