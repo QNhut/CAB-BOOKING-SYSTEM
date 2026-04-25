@@ -133,26 +133,6 @@ services:
       retries: 5
     networks:
       - taxi_net
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: taxi_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
-    ports:
-      - "${PGADMIN_PORT}:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./infra/pgadmin/servers.json:/pgadmin4/servers.json:ro
-      - ./infra/pgadmin/pgpass:/pgpass:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - taxi_net
   kafka:
     image: apache/kafka:4.1.1
     container_name: taxi_kafka
@@ -585,7 +565,6 @@ networks:
 volumes:
   postgres_data:
   redis_data:
-  pgadmin_data:
   pricing_node_modules:
   booking_node_modules:
   auth_node_modules:

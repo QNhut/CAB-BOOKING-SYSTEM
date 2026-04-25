@@ -1,23 +1,9 @@
 const config = require('config');
-const crypto = require("crypto");
 const qs = require('qs');
 const pendingStore = require('../../pending-store');
 const { publishPaymentEvent } = require('../../kafka');
+const { sha512, sortObject } = require('../../lib/vnpay');
 
-function sortObject(obj) {
-    let sorted = {};
-    let str = [];
-    for (let key in obj) {
-        if (obj.hasOwnProperty(key)) {
-            str.push(encodeURIComponent(key));
-        }
-    }
-    str.sort();
-    for (let key = 0; key < str.length; key++) {
-        sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
-    }
-    return sorted;
-}
 
 const vnpayIpn = async (req, res, next) => {
     let vnp_Params = req.query;
@@ -35,8 +21,7 @@ const vnpayIpn = async (req, res, next) => {
     vnp_Params = sortObject(vnp_Params);
     let secretKey = config.get('vnp_HashSecret');
     let signData = qs.stringify(vnp_Params, { encode: false });
-    let hmac = crypto.createHmac("sha512", secretKey);
-    let signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex");
+    let signed = sha512(signData, secretKey);
 
     // 1. Verify HMAC signature
     if (secureHash !== signed) {
@@ -80,7 +65,6 @@ const vnpayIpn = async (req, res, next) => {
     return res.status(200).json({ RspCode: '00', Message: 'Success' });
 };
 
-module.exports = { vnpayIpn };
 module.exports = {
     vnpayIpn
 };

@@ -1,24 +1,10 @@
 const moment = require('moment');
 const config = require('config');
 const querystring = require('qs');
-const crypto = require("crypto");
 const pendingStore = require('../../pending-store');
+const { getClientIp, sha512, sortObject } = require('../../lib/vnpay');
 
 // Hàm phụ trợ sortObject
-function sortObject(obj) {
-    let sorted = {};
-    let str = [];
-    for (let key in obj) {
-        if (obj.hasOwnProperty(key)) {
-            str.push(encodeURIComponent(key));
-        }
-    }
-    str.sort();
-    for (let key = 0; key < str.length; key++) {
-        sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
-    }
-    return sorted;
-}
 
 /**
  * Cập nhật hàm createOrder để nhận orderID từ bên ngoài
@@ -44,10 +30,7 @@ exports.createPaymentUrl = async (req, res, next) => {
     let date = new Date();
     let createDate = moment(date).format('YYYYMMDDHHmmss');
     
-    let ipAddr = req.headers['x-forwarded-for'] ||
-        req.connection?.remoteAddress ||
-        req.socket?.remoteAddress ||
-        req.connection?.socket?.remoteAddress;
+    let ipAddr = getClientIp(req);
 
     let tmnCode = config.get('vnp_TmnCode');
     let secretKey = config.get('vnp_HashSecret');
@@ -90,8 +73,7 @@ exports.createPaymentUrl = async (req, res, next) => {
     vnp_Params = sortObject(vnp_Params);
 
     let signData = querystring.stringify(vnp_Params, { encode: false });
-    let hmac = crypto.createHmac("sha512", secretKey);
-    let signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex"); 
+    let signed = sha512(signData, secretKey); 
     
     vnp_Params['vnp_SecureHash'] = signed;
     vnpUrl += '?' + querystring.stringify(vnp_Params, { encode: false });

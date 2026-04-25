@@ -1,19 +1,5 @@
  // Hàm phụ trợ sortObject (để nguyên logic của bạn)
-function sortObject(obj) {
-	let sorted = {};
-	let str = [];
-	let key;
-	for (key in obj){
-		if (obj.hasOwnProperty(key)) {
-		str.push(encodeURIComponent(key));
-		}
-	}
-	str.sort();
-    for (key = 0; key < str.length; key++) {
-        sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
-    }
-    return sorted;
-}
+const { sha512, sortObject } = require('../../lib/vnpay');
 
 
 // Controller xử lý tạo link thanh toán
@@ -34,9 +20,7 @@ exports.vnpayReturn = (req, res, next) => {
 
     let querystring = require('qs');
     let signData = querystring.stringify(vnp_Params, { encode: false });
-    let crypto = require("crypto");     
-    let hmac = crypto.createHmac("sha512", secretKey);
-    let signed = hmac.update(new Buffer(signData, 'utf-8')).digest("hex");     
+    let signed = sha512(signData, secretKey);     
 
     if(secureHash === signed){
         //Kiem tra xem du lieu trong db co hop le hay khong va thong bao ket qua

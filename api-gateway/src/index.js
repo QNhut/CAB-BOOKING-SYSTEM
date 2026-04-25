@@ -3,7 +3,10 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { createProxyMiddleware } from "http-proxy-middleware";
-import promClient from "prom-client";
+import metrics from "../../shared/metrics.js";
+import crypto from "crypto";
+
+const { metricsEndpoint, metricsMiddleware } = metrics;
 
 const app = express();
 const PORT = Number(process.env.PORT || 8000);
@@ -22,8 +25,6 @@ const FRAUD_URL   = process.env.FRAUD_URL   || "http://fraud-service:8010";
 const REVIEW_URL  = process.env.REVIEW_URL  || "http://review-service:8011";
 const AGENT_URL   = process.env.AGENT_URL   || "http://agent-service:8012";
 const USER_URL    = process.env.USER_URL    || "http://user-service:8013";
-
-import crypto from "crypto";
 
 // ── Security: Helmet (XSS protection, HSTS, etc.) ──────────────────────────
 app.use(helmet({
@@ -90,25 +91,8 @@ app.get("/health", (_req, res) => {
 });
 
 // ── Prometheus Metrics ──────────────────────────────────────────────────────
-const metricsRegister = new promClient.Registry();
-promClient.collectDefaultMetrics({ register: metricsRegister });
-const httpDuration = new promClient.Histogram({
-  name: "http_request_duration_seconds",
-  help: "Duration of HTTP requests in seconds",
-  labelNames: ["method", "route", "status_code"],
-  buckets: [0.01, 0.05, 0.1, 0.3, 0.5, 1, 2, 5],
-  registers: [metricsRegister],
-});
-app.use((req, res, next) => {
-  if (req.path === "/metrics" || req.path === "/health") return next();
-  const end = httpDuration.startTimer();
-  res.on("finish", () => end({ method: req.method, route: req.route?.path || req.path, status_code: res.statusCode }));
-  next();
-});
-app.get("/metrics", async (_req, res) => {
-  res.set("Content-Type", metricsRegister.contentType);
-  res.end(await metricsRegister.metrics());
-});
+app.use(metricsMiddleware);
+app.get("/metrics", metricsEndpoint);
 
 // ── Proxy factory ────────────────────────────────────────────────────────────
 function proxy(target) {
@@ -172,9 +156,9 @@ app.use("/drivers/me/rides", proxy(RIDE_URL));
 // driver management
 app.use("/drivers",  proxy(DRIVER_URL));
 
-// rides + user ride views (ride-service handles both /rides and /users paths)
+// rides + user ride views
 app.use("/rides",    proxy(RIDE_URL));
-app.use("/users",    proxy(RIDE_URL));
+app.use("/users/me/rides", proxy(RIDE_URL));
 
 // SSE notifications (must come before generic catch-all)
 app.use("/notifications", sseProxy);

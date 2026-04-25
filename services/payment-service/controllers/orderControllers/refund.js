@@ -5,7 +5,7 @@
 const request = require('request');
 const moment = require('moment');
 const config = require('config');
-const crypto = require("crypto");
+const { getClientIp, sha512 } = require('../../lib/vnpay');
 
 const refund = (req, res, next) => {
     process.env.TZ = 'Asia/Ho_Chi_Minh';
@@ -28,10 +28,7 @@ const refund = (req, res, next) => {
     let vnp_Command = 'refund';
     let vnp_OrderInfo = 'Hoan tien GD ma:' + vnp_TxnRef;
 
-    let vnp_IpAddr = req.headers['x-forwarded-for'] ||
-        req.connection.remoteAddress ||
-        req.socket.remoteAddress ||
-        req.connection.socket.remoteAddress;
+    let vnp_IpAddr = getClientIp(req);
 
 
     let vnp_CreateDate = moment(date).format('YYYYMMDDHHmmss');
@@ -39,8 +36,7 @@ const refund = (req, res, next) => {
     let vnp_TransactionNo = '0';
 
     let data = vnp_RequestId + "|" + vnp_Version + "|" + vnp_Command + "|" + vnp_TmnCode + "|" + vnp_TransactionType + "|" + vnp_TxnRef + "|" + vnp_Amount + "|" + vnp_TransactionNo + "|" + vnp_TransactionDate + "|" + vnp_CreateBy + "|" + vnp_CreateDate + "|" + vnp_IpAddr + "|" + vnp_OrderInfo;
-    let hmac = crypto.createHmac("sha512", secretKey);
-    let vnp_SecureHash = hmac.update(Buffer.from(data, 'utf-8')).digest("hex");
+    let vnp_SecureHash = sha512(data, secretKey);
 
     let dataObj = {
         'vnp_RequestId': vnp_RequestId,
