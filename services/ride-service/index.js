@@ -10,14 +10,17 @@ import { createClient } from "redis";
 import jwt from "jsonwebtoken";
 import { CircuitBreaker } from "../../shared/circuit-breaker.js";
 import { createLogger } from "../../shared/logger.js";
+import { createHttpMetrics } from "../../shared/http-metrics.js";
 
 const log = createLogger("ride-service");
+const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("ride-service");
 
 // ── Circuit breakers for downstream services ────────────────────────────────
 const cbGeo = new CircuitBreaker("geo-service", { failureThreshold: 5, resetTimeout: 30000 });
 const cbAuth = new CircuitBreaker("auth-service", { failureThreshold: 5, resetTimeout: 30000 });
 const cbDriver = new CircuitBreaker("driver-service", { failureThreshold: 5, resetTimeout: 30000 });
 const cbBooking = new CircuitBreaker("booking-service", { failureThreshold: 5, resetTimeout: 30000 });
+const cbAgent = new CircuitBreaker("agent-service", { failureThreshold: 5, resetTimeout: 30000 });
 
 /**
  * ENV required (docker-compose):
@@ -40,6 +43,7 @@ const bookingTopic = process.env.KAFKA_BOOKING_TOPIC || "taxi.bookings";
 const rideTopic = process.env.KAFKA_RIDE_TOPIC || "taxi.rides";
 const groupId = process.env.KAFKA_GROUP_ID || "ride-service";
 const DRIVER_BASE_URL = process.env.DRIVER_BASE_URL || "http://driver-service:8004";
+const AGENT_BASE_URL = process.env.AGENT_BASE_URL || "http://agent-service:8012";
 const BOOKING_BASE_URL = process.env.BOOKING_BASE_URL || "http://booking-service:8003";
 const GEO_BASE_URL = process.env.GEO_BASE_URL || "http://geo-service:8007";
 const AUTH_BASE_URL = process.env.AUTH_BASE_URL || "http://auth-service:8001";
@@ -52,7 +56,7 @@ const DRIVER_RETRY_MAX_ATTEMPTS = Number(process.env.DRIVER_RETRY_MAX_ATTEMPTS |
 const PORT = Number(process.env.PORT || 8005);
 
 if (!DATABASE_URL) {
-  console.error("❌ DATABASE_URL missing");
+  log.error("ride_database_url_missing");
   process.exit(1);
 }
 
@@ -65,7 +69,7 @@ async function runMigrations() {
     const sql = fs.readFileSync(path.join(dir, f), "utf8");
     await pool.query(sql);
   }
-  console.log("✅ ride migrations applied:", files.join(", "));
+  log.info("ride_migrations_applied", { migrations: files });
 }
 
 async function alreadyProcessed(eventId) {
@@ -82,7 +86,7 @@ async function markProcessed(eventId) {
 
 /** Redis lock */
 const rds = createClient({ url: REDIS_URL });
-rds.on("error", (e) => console.error("Redis error:", e.message));
+rds.on("error", (e) => log.error("ride_redis_error", { error: e.message }));
 
 const lockKey = (driverId) => `lock:driver:${driverId}`;
 
@@ -140,6 +144,34 @@ async function fetchDriverProfile(driverId) {
     return resp.data;
   } catch { return null; }
 }
+
+function normalizeAgentCandidates(agentResponse) {
+  const topDrivers = agentResponse?.top_3 || [];
+  return topDrivers
+    .map((driver, index) => ({
+      driverId: driver.driver_id || driver.driverId || driver.id,
+      distance: driver.distance ?? null,
+      rating: driver.rating ?? null,
+      status: driver.status || "ONLINE",
+      totalScore: driver.total_score ?? null,
+      rank: index + 1,
+    }))
+    .filter((driver) => driver.driverId);
+}
+
+async function selectDriverCandidates({ bookingId, userId, pickup, dropoff, vehicleType }) {
+  const response = await cbAgent.exec(() => axios.post(
+    `${AGENT_BASE_URL}/agent/select-driver`,
+    { bookingId, userId, pickup, dropoff, vehicleType },
+    { timeout: 4000 }
+  ));
+
+  return {
+    candidates: normalizeAgentCandidates(response.data),
+    agentDecision: response.data || null,
+  };
+}
+
 async function offerNextDriver(rideId) {
   const client = await pool.connect();
   let lockedDriverId = null;
@@ -160,7 +192,7 @@ async function offerNextDriver(rideId) {
     let idx = ride.candidate_index || 0;
 
     while (idx < candidates.length) {
-      const driverId = candidates[idx].driverId;
+      const driverId = candidates[idx].driverId || candidates[idx].driver_id || candidates[idx].id;
 
       // Try lock driver for offer window only
       const locked = await tryLockDriver(driverId, OFFER_TIMEOUT_SEC + 5);
@@ -238,7 +270,7 @@ async function offerNextDriver(rideId) {
         messages: [{ key: String(rideId), value: JSON.stringify(offerEvent) }],
       });
 
-      console.log(`[RIDE] Offered ride=${rideId} to driver=${driverId} idx=${idx}`);
+      log.info("ride_offered_to_driver", { ride_id: rideId, driver_id: driverId, candidate_index: idx });
       return;
     }
 
@@ -250,7 +282,7 @@ async function offerNextDriver(rideId) {
     );
     await client.query("COMMIT");
 
-    console.log(`[RIDE] NO_DRIVER_FOUND (will retry) ride=${rideId} nextRetry=${nextRetry}`);
+    log.info("ride_no_driver_found", { ride_id: rideId, next_retry_at: nextRetry });
   } catch (e) {
     try {
       await client.query("ROLLBACK");
@@ -260,7 +292,7 @@ async function offerNextDriver(rideId) {
     if (lockedDriverId) {
       try { await unlockDriver(lockedDriverId); } catch {}
     }
-    console.error("offerNextDriver error:", e.message);
+    log.error("ride_offer_next_driver_error", { ride_id: rideId, error: e.message });
   } finally {
     client.release();
   }
@@ -307,14 +339,14 @@ async function startTimeoutLoop() {
         await client.query("COMMIT");
 
         await unlockDriver(driverId);
-        console.log(`[RIDE] TIMEOUT ride=${rideId} driver=${driverId} -> offer next`);
+        log.info("ride_offer_timed_out", { ride_id: rideId, driver_id: driverId });
         await offerNextDriver(rideId);
       }
     } catch (e) {
       try {
         await client.query("ROLLBACK");
       } catch {}
-      console.error("timeout loop error:", e.message);
+      log.error("ride_timeout_loop_error", { error: e.message });
     } finally {
       client.release();
     }
@@ -327,7 +359,7 @@ async function startRetryLoop() {
     const client = await pool.connect();
     try {
       const { rows } = await client.query(
-        `SELECT id, booking_id, pickup, dropoff, retry_count
+        `SELECT id, booking_id, user_id, pickup, dropoff, vehicle_type, retry_count
          FROM rides
          WHERE status='NO_DRIVER_FOUND' AND next_retry_at IS NOT NULL AND next_retry_at <= now()
          LIMIT 20`
@@ -338,30 +370,23 @@ async function startRetryLoop() {
         const bookingId = row.booking_id;
 
         try {
-          // Re-query nearby drivers from driver-service
-          const pickup = row.pickup;
-          const resp = await cbDriver.exec(() => axios.get(`${DRIVER_BASE_URL}/drivers/nearby`, {
-            params: {
-              lat: pickup?.lat,
-              lng: pickup?.lng,
-              radiusM: 3000,
-              vehicleType: row.vehicle_type || "CAR_4",
-              limit: 20,
-            },
-            timeout: 3000,
-          }));
+          const { candidates } = await selectDriverCandidates({
+            bookingId,
+            userId: row.user_id,
+            pickup: row.pickup,
+            dropoff: row.dropoff,
+            vehicleType: row.vehicle_type || "CAR_4",
+          });
 
-          const drivers = resp.data?.drivers || [];
-
-          if (drivers.length > 0) {
-            // Found drivers: move back to OFFERING and set candidates
+          if (candidates.length > 0) {
+            // Agent selected drivers: move back to OFFERING and set candidates
             await client.query("BEGIN");
             await client.query(
               `UPDATE rides SET candidates=$2, status='OFFERING', candidate_index=0, next_retry_at=NULL, retry_count=0, updated_at=now() WHERE id=$1`,
-              [rideId, JSON.stringify(drivers)]
+              [rideId, JSON.stringify(candidates)]
             );
             await client.query("COMMIT");
-            console.log(`[RIDE] Retry found drivers for ride=${rideId} drivers=${drivers.length} -> offering`);
+            log.info("ride_retry_found_candidates", { ride_id: rideId, candidate_count: candidates.length });
             await offerNextDriver(rideId);
             continue;
           }
@@ -375,20 +400,20 @@ async function startRetryLoop() {
               `UPDATE rides SET retry_count=$2, next_retry_at=NULL, updated_at=now() WHERE id=$1`,
               [rideId, nextCount]
             );
-            console.log(`[RIDE] Retry reached max attempts for ride=${rideId} (gave up)`);
+            log.warn("ride_retry_exhausted", { ride_id: rideId, retry_count: nextCount });
           } else {
             await client.query(
               `UPDATE rides SET retry_count=$2, next_retry_at=$3, updated_at=now() WHERE id=$1`,
               [rideId, nextCount, nextRetry]
             );
-            console.log(`[RIDE] Retry scheduled for ride=${rideId} nextRetry=${nextRetry} attempt=${nextCount}`);
+            log.info("ride_retry_scheduled", { ride_id: rideId, next_retry_at: nextRetry, retry_count: nextCount });
           }
         } catch (e) {
-          console.error(`[RIDE] retry loop error for ride=${rideId}:`, e.message);
+          log.error("ride_retry_loop_item_error", { ride_id: rideId, error: e.message });
         }
       }
     } catch (e) {
-      console.error("retry loop error:", e.message);
+      log.error("ride_retry_loop_error", { error: e.message });
     } finally {
       client.release();
     }
@@ -399,6 +424,7 @@ async function startRetryLoop() {
 const app = express();
 app.use(cors());
 const jsonParser = express.json();
+app.use(metricsMiddleware);
 app.use((req, res, next) => {
   if (req.method === "GET" || req.method === "HEAD") {
     return next();
@@ -493,6 +519,7 @@ function getUserId(req) {
 
 app.get("/health", async (req, res) => res.json({ ok: true }));
 app.get("/rides/health", async (req, res) => res.json({ ok: true }));
+app.get("/metrics", metricsEndpoint);
 
 // Circuit breaker diagnostics
 app.get("/rides/circuit-breakers", (_req, res) => {
@@ -535,7 +562,7 @@ app.get("/rides/admin/all", adminAuthMiddleware, async (req, res) => {
     );
     res.json({ rides: rows });
   } catch (e) {
-    console.error("[ADMIN] get all rides error:", e.message);
+    log.error("ride_admin_get_all_error", { error: e.message });
     res.status(500).json({ error: e.message });
   }
 });
@@ -599,7 +626,7 @@ app.post("/rides/:rideId/user/cancel", userAuthMiddleware, async (req, res) => {
       await unlockDriver(driverId);
     }
 
-    console.log(`[RIDE] RIDE_CANCELLED by user ride=${rideId} driver=${driverId}`);
+    log.info("ride_cancelled_by_user", { ride_id: rideId, driver_id: driverId });
     res.json({ ok: true });
   } catch (e) {
     try { await client.query("ROLLBACK"); } catch {}
@@ -946,7 +973,7 @@ app.post("/rides/:rideId/driver/pickup", driverAuthMiddleware, async (req, res) 
       }],
     });
 
-    console.log(`[RIDE] PASSENGER_PICKED_UP ride=${rideId} driver=${driverId}`);
+    log.info("ride_passenger_picked_up", { ride_id: rideId, driver_id: driverId });
     res.json({ ok: true });
   } catch (e) {
     try { await client.query("ROLLBACK"); } catch {}
@@ -1029,14 +1056,14 @@ async function main() {
   await runMigrations();
 
   await rds.connect();
-  console.log("✅ ride-service redis connected");
+  log.info("ride_redis_connected");
 
   await producer.connect();
-  console.log("✅ ride-service producer connected");
+  log.info("ride_kafka_producer_connected", { brokers });
 
   await consumer.connect();
   await consumer.subscribe({ topic: bookingTopic, fromBeginning: false });
-  console.log(`✅ ride-service consuming topic=${bookingTopic}, group=${groupId}`);
+  log.info("ride_kafka_consuming", { topic: bookingTopic, group_id: groupId });
 
   // Start timeout loop
   startTimeoutLoop();
@@ -1044,7 +1071,7 @@ async function main() {
   startRetryLoop();
 
   // Start API
-  app.listen(PORT, () => console.log(`✅ Ride API listening on http://localhost:${PORT}`));
+  app.listen(PORT, () => log.info("ride_service_started", { port: PORT }));
 
   // Consumer
   await consumer.run({
@@ -1058,8 +1085,7 @@ async function main() {
 
       // Idempotency guard
       if (await alreadyProcessed(eventId)) {
-        // log nhẹ thôi
-        // console.log(`[RIDE] skip duplicated ${evt.eventType} eventId=${eventId}`);
+        log.debug("ride_duplicate_event_skipped", { event_type: evt.eventType, event_id: eventId });
         return;
       }
 
@@ -1098,12 +1124,16 @@ async function main() {
                     }),
                   }],
                 });
-                console.log(`[RIDE] BOOKING_CANCELLED → RIDE_OFFER_CANCELLED ride=${row.id} driver=${row.current_offer_driver_id}`);
+                log.info("ride_offer_cancelled_due_to_booking_cancelled", {
+                  ride_id: row.id,
+                  booking_id: bookingId,
+                  driver_id: row.current_offer_driver_id,
+                });
               }
             }
           }
         } catch (e) {
-          console.error("[RIDE] BOOKING_CANCELLED handler error:", e.message);
+          log.error("ride_booking_cancelled_handler_error", { error: e.message });
         }
         await markProcessed(eventId);
         return;
@@ -1126,19 +1156,13 @@ async function main() {
         const durationS  = pricingSnapshot?.durationS  ?? null;
         const currency   = pricingSnapshot?.currency   || "VND";
 
-        // Query nearby drivers
-        const resp = await cbDriver.exec(() => axios.get(`${DRIVER_BASE_URL}/drivers/nearby`, {
-          params: {
-            lat: pickup.lat,
-            lng: pickup.lng,
-            radiusM: 3000,
-            vehicleType,
-            limit: 20,
-          },
-          timeout: 3000,
-        }));
-
-        const drivers = resp.data?.drivers || [];
+        const { candidates, agentDecision } = await selectDriverCandidates({
+          bookingId,
+          userId,
+          pickup,
+          dropoff,
+          vehicleType,
+        });
 
         // Create or reuse ride for this booking (idempotent)
         const client = await pool.connect();
@@ -1158,7 +1182,7 @@ async function main() {
             await client.query(
               `INSERT INTO rides(id, booking_id, user_id, status, candidates, candidate_index, pickup, dropoff, fare, distance_m, duration_s, currency, vehicle_type)
                 VALUES ($1,$2,$3,'OFFERING',$4,0,$5,$6,$7,$8,$9,$10,$11)`,
-                [rideId, bookingId, userId || null, JSON.stringify(drivers),
+                [rideId, bookingId, userId || null, JSON.stringify(candidates),
                 pickup ? JSON.stringify(pickup) : null,
                 dropoff ? JSON.stringify(dropoff) : null,
                 fare, distanceM, durationS, currency, vehicleType || null]
@@ -1176,23 +1200,32 @@ async function main() {
               currency   = COALESCE(currency,   $8),
               vehicle_type = COALESCE(vehicle_type, $9)
              WHERE id=$1`,
-            [rideId, JSON.stringify(drivers),
+            [rideId, JSON.stringify(candidates),
              pickup  ? JSON.stringify(pickup)  : null,
              dropoff ? JSON.stringify(dropoff) : null,
              fare, distanceM, durationS, currency, vehicleType || null]
           );
 
-          if (drivers.length === 0) {
+          if (candidates.length === 0) {
             const nextRetry = new Date(Date.now() + DRIVER_RETRY_INTERVAL_SEC * 1000).toISOString();
             await client.query(
               `UPDATE rides SET status='NO_DRIVER_FOUND', retry_count=0, next_retry_at=$2, vehicle_type=$3, updated_at=now() WHERE id=$1`,
               [rideId, nextRetry, vehicleType || null]
             );
             await client.query("COMMIT");
-            console.log(`[RIDE] NO_DRIVER_FOUND booking=${bookingId} ride=${rideId} (will retry ${nextRetry})`);
+            log.info("ride_match_no_driver_found", {
+              booking_id: bookingId,
+              ride_id: rideId,
+              next_retry_at: nextRetry,
+            });
           } else {
             await client.query("COMMIT");
-            console.log(`[RIDE] MATCH_REQUEST booking=${bookingId} ride=${rideId} drivers=${drivers.length}`);
+            log.info("ride_match_requested", {
+              booking_id: bookingId,
+              ride_id: rideId,
+              selected_driver_id: agentDecision?.selected_driver?.driver_id || agentDecision?.selected_driver?.driverId || null,
+              candidate_count: candidates.length,
+            });
             await offerNextDriver(rideId);
           }
         } catch (e) {
@@ -1207,7 +1240,7 @@ async function main() {
         // Mark processed only after success
         await markProcessed(eventId);
       } catch (e) {
-        console.error("[RIDE] handle BOOKING_MATCH_REQUESTED failed:", e.message);
+        log.error("ride_match_request_handler_error", { error: e.message });
         // IMPORTANT: do NOT markProcessed here
       }
     },
@@ -1215,6 +1248,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error("❌ ride-service fatal:", e);
+  log.error("ride_service_fatal", { error: e.message, stack: e.stack });
   process.exit(1);
 });

@@ -3,6 +3,8 @@ const config = require('config');
 const querystring = require('qs');
 const pendingStore = require('../../pending-store');
 const { getClientIp, sha512, sortObject } = require('../../lib/vnpay');
+const { createLogger } = require('../../../../shared/logger.cjs');
+const log = createLogger('payment-service');
 
 // Hàm phụ trợ sortObject
 
@@ -15,10 +17,10 @@ async function createOrder(orderId, status, amount) {
     
     try {
         await db.query(sql, [orderId, status, amount]);
-        console.log(`--- Đã lưu đơn hàng ${orderId} vào DB ---`);
+        log.info('payment_order_saved', { order_id: orderId, status, amount });
         return true;
     } catch (error) {
-        console.error('Lỗi khi lưu đơn hàng:', error.message);
+        log.error('payment_order_save_error', { order_id: orderId, error: error.message });
         throw error;
     }
 }

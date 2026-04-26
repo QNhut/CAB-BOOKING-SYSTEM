@@ -3,6 +3,8 @@ const qs = require('qs');
 const pendingStore = require('../../pending-store');
 const { publishPaymentEvent } = require('../../kafka');
 const { sha512, sortObject } = require('../../lib/vnpay');
+const { createLogger } = require('../../../../shared/logger.cjs');
+const log = createLogger('payment-service');
 
 
 const vnpayIpn = async (req, res, next) => {
@@ -25,7 +27,7 @@ const vnpayIpn = async (req, res, next) => {
 
     // 1. Verify HMAC signature
     if (secureHash !== signed) {
-        console.warn(`[IPN] checksum failed for orderId=${orderId}`);
+        log.warn('payment_ipn_checksum_failed', { order_id: orderId });
         return res.status(200).json({ RspCode: '97', Message: 'Checksum failed' });
     }
 
@@ -41,6 +43,7 @@ const vnpayIpn = async (req, res, next) => {
     try {
         await publishPaymentEvent(eventType, {
             orderId,
+            bookingId: orderId,
             userId,
             amount: amountVnd,
             currency: 'VND',
@@ -52,13 +55,13 @@ const vnpayIpn = async (req, res, next) => {
 
         if (success) {
             pendingStore.remove(orderId); // clean up after successful payment
-            console.log(`[IPN] PAYMENT_COMPLETED orderId=${orderId} userId=${userId} amount=${amountVnd}`);
+            log.info('payment_ipn_completed', { order_id: orderId, user_id: userId, amount: amountVnd });
         } else {
-            console.log(`[IPN] PAYMENT_FAILED orderId=${orderId} rspCode=${rspCode}`);
+            log.warn('payment_ipn_failed', { order_id: orderId, rsp_code: rspCode });
         }
     } catch (kafkaErr) {
         // Don't let Kafka errors fail the IPN — VNPay will retry if we don't respond 00
-        console.error('[IPN] Kafka publish error:', kafkaErr.message);
+        log.error('payment_ipn_kafka_publish_error', { error: kafkaErr.message, order_id: orderId });
     }
 
     // 4. Always respond 00 to VNPay so it stops retrying

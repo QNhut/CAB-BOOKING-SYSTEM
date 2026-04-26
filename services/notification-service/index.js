@@ -2,11 +2,15 @@ import express from "express";
 import cors from "cors";
 import { Kafka } from "kafkajs";
 import jwt from "jsonwebtoken";
+import { createLogger } from "../../shared/logger.js";
+import { createHttpMetrics } from "../../shared/http-metrics.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(cors({ origin: "*", credentials: false }));
+const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("notification-service");
+app.use(metricsMiddleware);
 
 const PORT = Number(process.env.PORT || 8006);
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-in-production-please";
@@ -20,6 +24,7 @@ const bookingTopic = process.env.KAFKA_BOOKING_TOPIC || "taxi.bookings";
 const rideTopic    = process.env.KAFKA_RIDE_TOPIC    || "taxi.rides";
 const paymentTopic = process.env.KAFKA_PAYMENT_TOPIC || "taxi.payments";
 const groupId = process.env.KAFKA_GROUP_ID || "notification-service";
+const log = createLogger("notification-service");
 
 const consumer = kafka.consumer({ groupId });
 
@@ -48,10 +53,10 @@ function sseWrite(res, event, data) {
 function broadcast(map, id, event, data) {
   const set = map.get(id);
   if (!set) {
-    console.log(`[notif] broadcast ${event} -> id=${id} :: NO_CLIENTS (map size=${map.size})`);
+    log.debug("notification_broadcast_skipped", { event, target_id: id, reason: "no_clients", registry_size: map.size });
     return;
   }
-  console.log(`[notif] broadcast ${event} -> id=${id} :: ${set.size} client(s)`);
+  log.debug("notification_broadcast", { event, target_id: id, client_count: set.size });
   for (const res of set) {
     sseWrite(res, event, data);
   }
@@ -99,7 +104,12 @@ app.get("/notifications/stream", (req, res) => {
     const id = role === "USER" ? userId : driverId;
     if (role === "USER") addClient(userClients, id, res);
     else addClient(driverClients, id, res);
-    console.log(`[notif] SSE CONNECTED role=${role} id=${id} | users=${userClients.size} drivers=${driverClients.size}`);
+    log.info("notification_sse_connected", {
+      role,
+      client_id: id,
+      connected_users: userClients.size,
+      connected_drivers: driverClients.size,
+    });
 
     // hello + heartbeat (keep-alive)
     sseWrite(res, "hello", { ok: true, role, id, ts: Date.now() });
@@ -113,16 +123,22 @@ app.get("/notifications/stream", (req, res) => {
       clearInterval(heartbeat);
       if (role === "USER") removeClient(userClients, id, res);
       else removeClient(driverClients, id, res);
-      console.log(`[notif] SSE DISCONNECTED role=${role} id=${id} | users=${userClients.size} drivers=${driverClients.size}`);
+      log.info("notification_sse_disconnected", {
+        role,
+        client_id: id,
+        connected_users: userClients.size,
+        connected_drivers: driverClients.size,
+      });
     });
   } catch (err) {
-    console.error("SSE connection error:", err.message);
+    log.error("notification_sse_error", { error: err.message });
     res.status(400).json({ error: err.message });
   }
 });
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 app.get("/notifications/health", (req, res) => res.json({ ok: true }));
+app.get("/metrics", metricsEndpoint);
 
 // Debug: show connected clients
 app.get("/notifications/debug", (req, res) => {
@@ -210,23 +226,30 @@ function routeEvent(evt) {
 async function startKafka() {
   await consumer.connect();
   await consumer.subscribe({ topics: [bookingTopic, rideTopic, paymentTopic], fromBeginning: false });
-  console.log(`✅ notification-service consuming topics=${[bookingTopic, rideTopic, paymentTopic].join(',')} group=${groupId}`);
+  log.info("notification_kafka_consuming", {
+    topics: [bookingTopic, rideTopic, paymentTopic],
+    group_id: groupId,
+  });
 
   await consumer.run({
     eachMessage: async ({ topic: msgTopic, message }) => {
       if (!message.value) return;
       try {
         const evt = JSON.parse(message.value.toString());
-        console.log(`[notif] Kafka msg: ${evt.eventType} agg=${evt.aggregateId} topic=${msgTopic}`);
+        log.debug("notification_kafka_message", {
+          event_type: evt.eventType,
+          aggregate_id: evt.aggregateId,
+          topic: msgTopic,
+        });
         routeEvent(evt);
       } catch (e) {
-        console.log("notification parse error:", e.message);
+        log.warn("notification_parse_error", { error: e.message, topic: msgTopic });
       }
     },
   });
 }
 
-app.listen(PORT, () => console.log(`Notification SSE on http://localhost:${PORT}`));
+app.listen(PORT, () => log.info("notification_service_started", { port: PORT }));
 
 // Retry startKafka with exponential backoff — handles race condition where
 // Kafka is healthy but the topic doesn't exist yet when the service first connects.
@@ -234,13 +257,17 @@ async function startKafkaWithRetry(attempt = 1, maxAttempts = 20, baseDelayMs = 
   try {
     await startKafka();
   } catch (e) {
-    console.error(`[notif] Kafka start error (attempt ${attempt}/${maxAttempts}):`, e.message);
+    log.error("notification_kafka_start_error", {
+      attempt,
+      max_attempts: maxAttempts,
+      error: e.message,
+    });
     if (attempt >= maxAttempts) {
-      console.error("[notif] Giving up after max Kafka retries");
+      log.error("notification_kafka_start_aborted", { attempt, max_attempts: maxAttempts });
       return;
     }
     const delay = Math.min(baseDelayMs * attempt, 30000);
-    console.log(`[notif] Retrying Kafka in ${delay}ms…`);
+    log.warn("notification_kafka_retry_scheduled", { attempt, delay_ms: delay });
     setTimeout(() => startKafkaWithRetry(attempt + 1, maxAttempts, baseDelayMs), delay);
   }
 }

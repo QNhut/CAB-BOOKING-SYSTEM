@@ -1,16 +1,3 @@
-/**
- * Structured JSON logger – shared utility for all microservices.
- * Lightweight alternative to winston for services that don't need file transports.
- *
- * Usage (CommonJS):
- *   const { createLogger } = require('../shared/logger');
- *   const log = createLogger('my-service');
- *   log.info('Server started', { port: 8001 });
- *
- * Usage (ESM):
- *   import { createLogger } from '../shared/logger.js';
- */
-
 function createLogger(service) {
   function format(level, msg, meta) {
     return JSON.stringify({
@@ -41,6 +28,4 @@ function createLogger(service) {
   };
 }
 
-// Support both ESM and CommonJS
-export { createLogger };
-try { module.exports = { createLogger }; } catch {}
+module.exports = { createLogger };

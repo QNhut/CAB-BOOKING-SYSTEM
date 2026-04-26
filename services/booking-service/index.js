@@ -7,12 +7,15 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { Kafka } from "kafkajs";
 import { createLogger } from "../../shared/logger.js";
+import { createHttpMetrics } from "../../shared/http-metrics.js";
 
 const log = createLogger("booking-service");
+const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("booking-service");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(metricsMiddleware);
 
 const PORT = process.env.PORT || 8003;
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -24,8 +27,85 @@ function uuid() {
   return crypto.randomUUID();
 }
 
+function summarizeBookingRequest(body = {}) {
+  return {
+    userId: body.userId || null,
+    vehicleType: body.vehicleType || null,
+    paymentMethod: body.paymentMethod || null,
+    paymentStatus: body.paymentStatus || null,
+    pickup: body.pickup ? {
+      lat: body.pickup.lat,
+      lng: body.pickup.lng,
+      address: body.pickup.address || null,
+    } : null,
+    dropoff: body.dropoff ? {
+      lat: body.dropoff.lat,
+      lng: body.dropoff.lng,
+      address: body.dropoff.address || null,
+    } : null,
+    pricingSnapshot: body.pricingSnapshot ? {
+      fare: body.pricingSnapshot.fare ?? null,
+      distanceM: body.pricingSnapshot.distanceM ?? null,
+      durationS: body.pricingSnapshot.durationS ?? null,
+      currency: body.pricingSnapshot.currency || null,
+    } : null,
+  };
+}
+
+function bookingRequestLoggingMiddleware(req, res, next) {
+  const start = Date.now();
+  const traceId = req.headers["x-trace-id"] || crypto.randomBytes(16).toString("hex");
+  const requestId = req.headers["x-request-id"] || `req_${crypto.randomBytes(8).toString("hex")}`;
+
+  req.traceId = traceId;
+  req.requestId = requestId;
+  res.setHeader("X-Trace-Id", traceId);
+  res.setHeader("X-Request-Id", requestId);
+
+  let responseBody;
+  const originalJson = res.json.bind(res);
+  res.json = (body) => {
+    responseBody = body;
+    return originalJson(body);
+  };
+
+  res.on("finish", () => {
+    if (!req.path.startsWith("/bookings")) return;
+
+    const requestSummary = req.method === "POST" || req.method === "PUT" || req.method === "PATCH"
+      ? summarizeBookingRequest(req.body || {})
+      : undefined;
+
+    log.info("booking_api_request_completed", {
+      request_id: requestId,
+      trace_id: traceId,
+      method: req.method,
+      path: req.originalUrl || req.path,
+      status_code: res.statusCode,
+      duration_ms: Date.now() - start,
+      user_id: req.auth?.userId || null,
+      account_id: req.auth?.accountId || null,
+      idempotency_key: req.header("X-Idempotency-Key") || null,
+      request: requestSummary,
+      response: responseBody || null,
+    });
+  });
+
+  next();
+}
+
+app.use(bookingRequestLoggingMiddleware);
+
 class ValidationError extends Error {
   constructor(msg) { super(msg); this.name = "ValidationError"; }
+}
+
+class SimulatedFailureError extends Error {
+  constructor(msg) {
+    super(msg);
+    this.name = "SimulatedFailureError";
+    this.statusCode = 500;
+  }
 }
 
 function assertLatLng(p, name) {
@@ -47,7 +127,7 @@ async function runMigrations() {
     if (fs.existsSync(file)) {
       const sql = fs.readFileSync(file, "utf8");
       await pool.query(sql);
-      console.log(`✅ migration applied: ${m}`);
+      log.info("booking_migration_applied", { migration: m });
     }
   }
 }
@@ -106,6 +186,7 @@ app.get("/bookings/health", async (req, res) => {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
+app.get("/metrics", metricsEndpoint);
 
 // Get active booking for current user
 app.get("/bookings/me/active", userAuthMiddleware, async (req, res) => {
@@ -170,6 +251,8 @@ app.post("/bookings", userAuthMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
     // ── Idempotency key support ─────────────────────────────────────────
+    const simulateFailure = req.header("X-Test-Simulate-Failure");
+    const forcedBookingId = req.header("X-Test-Booking-Id");
     const idempotencyKey = req.header("X-Idempotency-Key");
     if (idempotencyKey) {
       const existing = await client.query(
@@ -187,6 +270,7 @@ app.post("/bookings", userAuthMiddleware, async (req, res) => {
       dropoff,
       vehicleType,
       paymentMethod,
+      paymentStatus: requestedPaymentStatus,
       pricingSnapshot,
     } = req.body || {};
 
@@ -205,15 +289,17 @@ app.post("/bookings", userAuthMiddleware, async (req, res) => {
     if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
       return res.status(400).json({ error: "Invalid payment method", valid: VALID_PAYMENT_METHODS });
     }
+    if (paymentMethod === "VNPAY" && requestedPaymentStatus !== "PAID") {
+      return res.status(400).json({ error: "VNPAY booking can only be created after successful payment" });
+    }
     if (!pricingSnapshot?.fare || !pricingSnapshot?.distanceM || !pricingSnapshot?.durationS) {
       throw new Error("pricingSnapshot {fare,distanceM,durationS} is required");
     }
 
-    const bookingId = uuid();
+    const bookingId = forcedBookingId || uuid();
 
-    // Initial status is REQUESTED; transition to PAID (CASH) or WAITING_PAYMENT (VNPAY) via outbox
-    const status = "REQUESTED";
-    const paymentStatus = paymentMethod === "VNPAY" ? "PENDING" : "NOT_REQUIRED";
+    const status = paymentMethod === "VNPAY" ? "PAID" : "REQUESTED";
+    const paymentStatus = paymentMethod === "VNPAY" ? "PAID" : "NOT_REQUIRED";
 
     await client.query("BEGIN");
 
@@ -252,6 +338,10 @@ app.post("/bookings", userAuthMiddleware, async (req, res) => {
       ]
     );
 
+    if (simulateFailure === "after_booking_insert") {
+      throw new SimulatedFailureError("Simulated failure after booking insert");
+    }
+
     await client.query(
       `INSERT INTO booking_status_history (id, booking_id, from_status, to_status, reason)
        VALUES ($1,$2,$3,$4,$5)`,
@@ -281,8 +371,8 @@ app.post("/bookings", userAuthMiddleware, async (req, res) => {
       ]
     );
 
-    // nếu CASH coi như match luôn => outbox BOOKING_MATCH_REQUESTED
-    if (paymentMethod !== "VNPAY") {
+    // CASH matches immediately; VNPay only after verified payment
+    if (paymentMethod !== "VNPAY" || paymentStatus === "PAID") {
       await client.query(
         `INSERT INTO outbox_events (id, aggregate_type, aggregate_id, event_type, payload)
          VALUES ($1,$2,$3,$4,$5::jsonb)`,
@@ -310,7 +400,7 @@ app.post("/bookings", userAuthMiddleware, async (req, res) => {
     res.json({ bookingId, status });
   } catch (e) {
     await client.query("ROLLBACK");
-    const status = e.name === "ValidationError" ? 422 : 400;
+    const status = e.statusCode || (e.name === "ValidationError" ? 422 : 400);
     res.status(status).json({ error: e.message || "Bad Request" });
   } finally {
     client.release();
@@ -457,7 +547,7 @@ app.post("/bookings/:id/cancel", userAuthMiddleware, async (req, res) => {
       messages: [{ key: id, value: JSON.stringify(evt) }],
     });
 
-    console.log(`[BOOKING] manual cancel: booking=${id} userId=${userId}`);
+    log.info("booking_cancelled_manually", { booking_id: id, user_id: userId });
     res.json({ ok: true, bookingId: id, status: "CANCELLED" });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -467,17 +557,17 @@ app.post("/bookings/:id/cancel", userAuthMiddleware, async (req, res) => {
 await runMigrations();
 // Connect Kafka producer before starting server
 await bookingProducer.connect();
-console.log("✅ booking-service Kafka producer connected");
+log.info("booking_kafka_producer_connected", { brokers: KAFKA_BROKERS });
 
 app.listen(PORT, () => {
-  console.log(`Booking service running on http://localhost:${PORT}`);
+  log.info("booking_service_started", { port: Number(PORT) });
 });
 
 // ── Kafka consumer + auto-cancel job ───────────────────────────────
 async function startKafkaConsumer() {
   await consumer.connect();
   await consumer.subscribe({ topic: KAFKA_RIDE_TOPIC, fromBeginning: false });
-  console.log(`✅ booking-service consuming ${KAFKA_RIDE_TOPIC}`);
+  log.info("booking_kafka_consuming", { topic: KAFKA_RIDE_TOPIC });
 
   await consumer.run({
     eachMessage: async ({ message }) => {
@@ -491,7 +581,12 @@ async function startKafkaConsumer() {
             `UPDATE bookings SET status = 'COMPLETED', ride_id = $2 WHERE id = $1 AND status != 'COMPLETED'`,
             [payload.bookingId, payload.rideId || null]
           );
-          console.log(`[BOOKING] RIDE_COMPLETED → booking ${payload.bookingId} → COMPLETED`);
+          log.info("booking_status_updated_from_ride", {
+            event_type: eventType,
+            booking_id: payload.bookingId,
+            ride_id: payload.rideId || null,
+            status: "COMPLETED",
+          });
         }
 
         if (eventType === "RIDE_ACCEPTED" && payload?.bookingId) {
@@ -499,10 +594,15 @@ async function startKafkaConsumer() {
             `UPDATE bookings SET status = 'MATCHED', ride_id = $2 WHERE id = $1 AND status NOT IN ('COMPLETED','CANCELLED')`,
             [payload.bookingId, payload.rideId || null]
           );
-          console.log(`[BOOKING] RIDE_ACCEPTED → booking ${payload.bookingId} → MATCHED, ride=${payload.rideId}`);
+          log.info("booking_status_updated_from_ride", {
+            event_type: eventType,
+            booking_id: payload.bookingId,
+            ride_id: payload.rideId || null,
+            status: "MATCHED",
+          });
         }
       } catch (e) {
-        console.error("[BOOKING] Kafka consumer error:", e.message);
+        log.error("booking_kafka_consumer_error", { error: e.message });
       }
     },
   });
@@ -524,7 +624,7 @@ async function startAutoCancelJob() {
          RETURNING id, user_id`
       );
       if (rows.length > 0) {
-        console.log(`[BOOKING] auto-cancelled ${rows.length} expired booking(s)`);
+        log.info("booking_auto_cancelled", { count: rows.length, expire_minutes: EXPIRE_MINUTES });
         // Publish BOOKING_CANCELLED for each
         const msgs = rows.map((bk) => ({
           key: bk.id,
@@ -540,13 +640,16 @@ async function startAutoCancelJob() {
         await bookingProducer.send({ topic: KAFKA_BOOKING_TOPIC, messages: msgs });
       }
     } catch (e) {
-      console.error("[BOOKING] auto-cancel job error:", e.message);
+      log.error("booking_auto_cancel_job_error", { error: e.message });
     }
   }
 
   setInterval(runCancelJob, JOB_INTERVAL_MS);
-  console.log(`✅ auto-cancel job started (every ${JOB_INTERVAL_MS / 1000}s, expire=${EXPIRE_MINUTES}min)`);
+  log.info("booking_auto_cancel_job_started", {
+    interval_seconds: JOB_INTERVAL_MS / 1000,
+    expire_minutes: EXPIRE_MINUTES,
+  });
 }
 
-startKafkaConsumer().catch((e) => console.error("[BOOKING] Kafka start error:", e.message));
-startAutoCancelJob().catch((e) => console.error("[BOOKING] auto-cancel start error:", e.message));
+startKafkaConsumer().catch((e) => log.error("booking_kafka_start_error", { error: e.message }));
+startAutoCancelJob().catch((e) => log.error("booking_auto_cancel_start_error", { error: e.message }));

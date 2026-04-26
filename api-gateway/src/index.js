@@ -3,13 +3,13 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { createProxyMiddleware } from "http-proxy-middleware";
-import metrics from "../../shared/metrics.js";
+import { metricsEndpoint, metricsMiddleware } from "./metrics.js";
 import crypto from "crypto";
-
-const { metricsEndpoint, metricsMiddleware } = metrics;
+import { createLogger } from "../../shared/logger.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 8000);
+const log = createLogger("api-gateway");
 
 // ── Upstream service URLs ───────────────────────────────────────────────────
 const AUTH_URL    = process.env.AUTH_URL    || "http://auth-service:8001";
@@ -102,7 +102,7 @@ function proxy(target) {
     logLevel: "warn",
     on: {
       error(err, _req, res) {
-        console.error(`[GW] proxy error → ${target}:`, err.message);
+        log.error("proxy_error", { upstream: target, error: err.message });
         if (res && !res.headersSent) {
           res.statusCode = 502;
           res.end(JSON.stringify({ error: "upstream unavailable", upstream: target }));
@@ -128,7 +128,7 @@ const sseProxy = createProxyMiddleware({
       proxyReq.setHeader("x-forwarded-for", ip);
     },
     error(err, _req, res) {
-      console.error("[GW] SSE proxy error:", err.message);
+      log.error("sse_proxy_error", { upstream: NOTIF_URL, error: err.message });
       if (res && !res.headersSent) {
         res.statusCode = 502;
         res.end("data: {\"error\":\"upstream unavailable\"}\n\n");
@@ -186,7 +186,7 @@ app.use("/payment", createProxyMiddleware({
   pathRewrite: { "^/payment": "" },
   on: {
     error(err, _req, res) {
-      console.error(`[GW] proxy error → ${PAYMENT_URL}:`, err.message);
+      log.error("proxy_error", { upstream: PAYMENT_URL, error: err.message });
       if (res && !res.headersSent) {
         res.statusCode = 502;
         res.end(JSON.stringify({ error: "upstream unavailable", upstream: PAYMENT_URL }));
@@ -201,16 +201,22 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ API Gateway listening on http://0.0.0.0:${PORT}`);
-  console.log("  Routes:");
-  console.log(`    /auth, /internal  → ${AUTH_URL}`);
-  console.log(`    /bookings         → ${BOOKING_URL}`);
-  console.log(`    /pricing          → ${PRICING_URL}`);
-  console.log(`    /drivers          → ${DRIVER_URL}`);
-  console.log(`    /rides, /users    → ${RIDE_URL}`);
-  console.log(`    /notifications    → ${NOTIF_URL}  (SSE)`);
-  console.log(`    /eta              → ${ETA_URL}`);
-  console.log(`    /fraud            → ${FRAUD_URL}`);
-  console.log(`    /geo              → ${GEO_URL}`);
-  console.log(`    /payment          → ${PAYMENT_URL}`);
+  log.info("gateway_started", {
+    port: PORT,
+    routes: {
+      auth: AUTH_URL,
+      internal: AUTH_URL,
+      bookings: BOOKING_URL,
+      pricing: PRICING_URL,
+      drivers: DRIVER_URL,
+      rides: RIDE_URL,
+      notifications: NOTIF_URL,
+      eta: ETA_URL,
+      fraud: FRAUD_URL,
+      geo: GEO_URL,
+      payment: PAYMENT_URL,
+      agent: AGENT_URL,
+      users: USER_URL,
+    },
+  });
 });

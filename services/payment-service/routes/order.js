@@ -36,6 +36,7 @@ router.post('/create_payment_url', createurlController.createPaymentUrl);
    
 
 router.get('/vnpay_return', vnpayreturnController.vnpayReturn);
+router.post('/verify_return', vnpayreturnController.verifyReturn);
 
 router.get('/vnpay_ipn', vnpayIpnController.vnpayIpn);
 

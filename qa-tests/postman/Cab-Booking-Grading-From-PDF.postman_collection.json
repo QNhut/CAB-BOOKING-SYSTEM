@@ -1,0 +1,2653 @@
+{
+  "info": {
+    "_postman_id": "71e1a50b-df78-43f0-b7bd-9a671298cf20",
+    "name": "Cab Booking - Grading Cases From PDF",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection generated only from final_PROJECT_grading-factor.pdf via PyMuPDF extraction. It focuses on API-checkable grading cases from the PDF and maps them to the current gateway-exposed endpoints in this repo."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "customerPassword",
+      "value": "Test@123456"
+    },
+    {
+      "key": "driverPassword",
+      "value": "Test@123456"
+    },
+    {
+      "key": "vehicleType",
+      "value": "CAR_4"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Setup",
+      "item": [
+        {
+          "name": "Setup Variables",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('runId')) {",
+                  "  const runId = String(Date.now());",
+                  "  pm.collectionVariables.set('runId', runId);",
+                  "  pm.collectionVariables.set('customerIdentifier', `pdf-user-${runId}@test.com`);",
+                  "  pm.collectionVariables.set('customerUserId', `USR_${runId}`);",
+                  "  pm.collectionVariables.set('driverIdentifier1', `pdf-driver-1-${runId}@test.com`);",
+                  "  pm.collectionVariables.set('driverIdentifier2', `pdf-driver-2-${runId}@test.com`);",
+                  "  pm.collectionVariables.set('driverIdentifier3', `pdf-driver-3-${runId}@test.com`);",
+                  "  pm.collectionVariables.set('driverId1', `DRV1_${runId}`);",
+                  "  pm.collectionVariables.set('driverId2', `DRV2_${runId}`);",
+                  "  pm.collectionVariables.set('driverId3', `DRV3_${runId}`);",
+                  "  pm.collectionVariables.set('driverIdentifier', `pdf-driver-1-${runId}@test.com`);",
+                  "  pm.collectionVariables.set('driverId', `DRV1_${runId}`);",
+                  "  pm.collectionVariables.set('bookingId', '');",
+                  "  pm.collectionVariables.set('pricingFare', '25000');",
+                  "  pm.collectionVariables.set('pricingDistanceM', '5000');",
+                  "  pm.collectionVariables.set('pricingDurationS', '600');",
+                  "}",
+                  "pm.variables.set('setupReady', 'true');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('setup variables ready', function () {",
+                  "  pm.expect(pm.collectionVariables.get('driverIdentifier1')).to.exist;",
+                  "  pm.expect(pm.collectionVariables.get('driverIdentifier2')).to.exist;",
+                  "  pm.expect(pm.collectionVariables.get('driverIdentifier3')).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Register DRIVER 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Driver 1 register returns 201 or 409', function () {",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('driverToken1', body.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{driverIdentifier1}}\",\n  \"password\": \"{{driverPassword}}\",\n  \"role\": \"DRIVER\",\n  \"driverId\": \"{{driverId1}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Register DRIVER 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Driver 2 register returns 201 or 409', function () {",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('driverToken2', body.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{driverIdentifier2}}\",\n  \"password\": \"{{driverPassword}}\",\n  \"role\": \"DRIVER\",\n  \"driverId\": \"{{driverId2}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Register DRIVER 3",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Driver 3 register returns 201 or 409', function () {",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('driverToken3', body.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{driverIdentifier3}}\",\n  \"password\": \"{{driverPassword}}\",\n  \"role\": \"DRIVER\",\n  \"driverId\": \"{{driverId3}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login DRIVER 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Driver 1 login returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('driverToken1', body.accessToken);",
+                  "pm.collectionVariables.set('driverToken', body.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{driverIdentifier1}}\",\n  \"password\": \"{{driverPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login DRIVER 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Driver 2 login returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('driverToken2', body.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{driverIdentifier2}}\",\n  \"password\": \"{{driverPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login DRIVER 3",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Driver 3 login returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('driverToken3', body.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{driverIdentifier3}}\",\n  \"password\": \"{{driverPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Prerequisites and account bootstrap for the testcase folders below."
+    },
+    {
+      "name": "TC01",
+      "item": [
+        {
+          "name": "TC01 - Register USER Successfully",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('runId')) {",
+                  "  const runId = String(Date.now());",
+                  "  pm.collectionVariables.set('runId', runId);",
+                  "  pm.collectionVariables.set('customerIdentifier', `pdf-user-${runId}@test.com`);",
+                  "  pm.collectionVariables.set('customerUserId', `USR_${runId}`);",
+                  "  pm.collectionVariables.set('driverIdentifier1', `pdf-driver-1-${runId}@test.com`);",
+                  "  pm.collectionVariables.set('driverIdentifier2', `pdf-driver-2-${runId}@test.com`);",
+                  "  pm.collectionVariables.set('driverIdentifier3', `pdf-driver-3-${runId}@test.com`);",
+                  "  pm.collectionVariables.set('driverId1', `DRV1_${runId}`);",
+                  "  pm.collectionVariables.set('driverId2', `DRV2_${runId}`);",
+                  "  pm.collectionVariables.set('driverId3', `DRV3_${runId}`);",
+                  "  pm.collectionVariables.set('driverIdentifier', `pdf-driver-1-${runId}@test.com`);",
+                  "  pm.collectionVariables.set('driverId', `DRV1_${runId}`);",
+                  "  pm.collectionVariables.set('bookingId', '');",
+                  "  pm.collectionVariables.set('pricingFare', '25000');",
+                  "  pm.collectionVariables.set('pricingDistanceM', '5000');",
+                  "  pm.collectionVariables.set('pricingDurationS', '600');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 Created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('customerToken', body.accessToken);",
+                  "pm.collectionVariables.set('customerRefreshToken', body.refreshToken);",
+                  "pm.test('Account payload is returned', function () {",
+                  "  pm.expect(body.account).to.be.an('object');",
+                  "  pm.expect(body.account.role).to.eql('USER');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{customerIdentifier}}\",\n  \"password\": \"{{customerPassword}}\",\n  \"role\": \"USER\",\n  \"userId\": \"{{customerUserId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC01."
+    },
+    {
+      "name": "TC02",
+      "item": [
+        {
+          "name": "TC02 - Login Returns Valid JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 OK', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('customerToken', body.accessToken);",
+                  "pm.collectionVariables.set('customerRefreshToken', body.refreshToken);",
+                  "pm.test('Access token exists', function () {",
+                  "  pm.expect(body.accessToken).to.be.a('string').and.to.have.length.above(20);",
+                  "});",
+                  "const parts = body.accessToken.split('.');",
+                  "pm.test('JWT has 3 parts', function () {",
+                  "  pm.expect(parts.length).to.eql(3);",
+                  "});",
+                  "const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));",
+                  "pm.collectionVariables.set('customerJwtSub', payload.sub);",
+                  "pm.test('JWT payload contains sub and exp', function () {",
+                  "  pm.expect(payload.sub).to.exist;",
+                  "  pm.expect(payload.exp).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{customerIdentifier}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC02."
+    },
+    {
+      "name": "TC03",
+      "item": [
+        {
+          "name": "TC03 - Create Booking With Valid Input",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 or 201', function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('bookingId', body.bookingId);",
+                  "pm.test('bookingId is returned', function () {",
+                  "  pm.expect(body.bookingId).to.be.a('string').and.to.have.length.above(8);",
+                  "});",
+                  "pm.test('status is REQUESTED or CONFIRMED', function () {",
+                  "  pm.expect(['REQUESTED', 'CONFIRMED']).to.include(body.status);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66, \"address\": \"Ben Thanh\"},\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70, \"address\": \"District 1\"},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": {{pricingFare}},\n    \"distanceM\": {{pricingDistanceM}},\n    \"durationS\": {{pricingDurationS}},\n    \"currency\": \"VND\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC03."
+    },
+    {
+      "name": "TC04",
+      "item": [
+        {
+          "name": "TC04 - Get Current User Booking View",
+          "description": "Mapped from the PDF booking-list case to the current authenticated booking endpoint exposed by the repo.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('booking payload is returned', function () {",
+                  "  pm.expect(body.booking).to.be.an('object');",
+                  "  pm.expect(body.booking.id).to.eql(pm.collectionVariables.get('bookingId'));",
+                  "});",
+                  "pm.test('booking has status field', function () {",
+                  "  pm.expect(body.booking.status).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/me/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "me",
+                "active"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC04."
+    },
+    {
+      "name": "TC05",
+      "item": [
+        {
+          "name": "TC05 - Driver Goes Online",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Driver state is ONLINE', function () {",
+                  "  pm.expect(body.status).to.eql('ONLINE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ONLINE\",\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"lat\": 10.76,\n  \"lng\": 106.66\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/drivers/me/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "drivers",
+                "me",
+                "status"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC05."
+    },
+    {
+      "name": "TC06",
+      "item": [
+        {
+          "name": "TC06 - Booking Initial Status Is REQUESTED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('status starts at REQUESTED', function () {",
+                  "  pm.expect(body.status).to.eql('REQUESTED');",
+                  "});",
+                  "pm.test('created_at exists', function () {",
+                  "  pm.expect(body.created_at).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "{{bookingId}}"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC06."
+    },
+    {
+      "name": "TC07",
+      "item": [
+        {
+          "name": "TC07 - ETA API Returns > 0",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('eta is greater than 0', function () {",
+                  "  pm.expect(body.eta).to.be.a('number').and.to.be.above(0);",
+                  "});",
+                  "pm.test('eta is reasonable', function () {",
+                  "  pm.expect(body.eta).to.be.below(60);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"traffic_level\": 0.5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/eta/predict",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "eta",
+                "predict"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC07."
+    },
+    {
+      "name": "TC08",
+      "item": [
+        {
+          "name": "TC08 - Pricing API Returns Valid Price",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('pricingFare', String(body.fare));",
+                  "pm.collectionVariables.set('pricingDistanceM', String(body.distanceM));",
+                  "pm.collectionVariables.set('pricingDurationS', String(body.durationS));",
+                  "pm.test('price is above base fare', function () {",
+                  "  pm.expect(body.price).to.be.a('number').and.to.be.above(body.base_fare);",
+                  "});",
+                  "pm.test('surge is at least 1', function () {",
+                  "  pm.expect(body.surge_multiplier).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"demand_index\": 1.0,\n  \"supply_index\": 1.0,\n  \"vehicleType\": \"{{vehicleType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pricing/estimate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pricing",
+                "estimate"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC08."
+    },
+    {
+      "name": "TC09",
+      "item": [
+        {
+          "name": "TC09 - Notification Debug Snapshot",
+          "description": "Use together with an open SSE connection to /notifications/stream in another Postman tab or browser tab. This request shows connected user/driver listeners.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('debug payload has users/drivers maps', function () {",
+                  "  pm.expect(body.users).to.be.an('object');",
+                  "  pm.expect(body.drivers).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/notifications/debug",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "debug"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC09."
+    },
+    {
+      "name": "TC10",
+      "item": [
+        {
+          "name": "TC10 - Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('logout acknowledged', function () {",
+                  "  pm.expect(body.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{customerRefreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC10 - Refresh With Revoked Token -> 401",
+          "description": "Gateway-accessible proof that the revoked session cannot be reused after logout.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(401);",
+                  "const body = pm.response.json();",
+                  "pm.test('refresh token is revoked', function () {",
+                  "  pm.expect(['Token revoked', 'Invalid refresh token']).to.include(body.error);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{customerRefreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC10."
+    },
+    {
+      "name": "TC11",
+      "item": [
+        {
+          "name": "TC11 - Booking Missing Pickup -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('error mentions pickup', function () {",
+                  "  pm.expect(String(body.error || '')).to.include('pickup');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 25000, \"distanceM\": 5000, \"durationS\": 600, \"currency\": \"VND\"}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC11."
+    },
+    {
+      "name": "TC12",
+      "item": [
+        {
+          "name": "TC12 - Invalid Lat/Lng Format -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', function () {",
+                  "  pm.response.to.have.status(422);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('validation error is returned', function () {",
+                  "  pm.expect(String(body.error || '')).to.include('pickup');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": \"abc\", \"lng\": 106.66},\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 25000, \"distanceM\": 5000, \"durationS\": 600, \"currency\": \"VND\"}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC12."
+    },
+    {
+      "name": "TC13",
+      "item": [
+        {
+          "name": "TC13 - Driver Goes OFFLINE",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('driver is offline', function () {",
+                  "  pm.expect(body.status).to.eql('OFFLINE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"OFFLINE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/drivers/me/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "drivers",
+                "me",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC13 - Create Booking When No Driver Online",
+          "description": "This supports the PDF offline-driver case. In this codebase, follow-up behavior is best checked via /users/me/rides/current and service logs rather than a single synchronous booking response.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('offlineBookingKey', `offline-${pm.collectionVariables.get('runId')}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('booking request itself is accepted', function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('offlineBookingId', body.bookingId || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{offlineBookingKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.768, \"lng\": 106.668},\n  \"dropoff\": {\"lat\": 10.779, \"lng\": 106.709},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 29000, \"distanceM\": 6000, \"durationS\": 700, \"currency\": \"VND\"}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC13 - Check User Current Ride State",
+          "description": "Run after the offline-driver booking. Expect searching/none/no assignment depending on timing; use with logs to prove no driver was assigned.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/rides/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "rides",
+                "current"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC13."
+    },
+    {
+      "name": "TC14",
+      "item": [
+        {
+          "name": "TC14 - Invalid Payment Method On Booking -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(400);",
+                  "const body = pm.response.json();",
+                  "pm.test('message is clear', function () {",
+                  "  pm.expect(String(body.error || '')).to.include('Invalid payment method');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"invalid_card\",\n  \"pricingSnapshot\": {\"fare\": 25000, \"distanceM\": 5000, \"durationS\": 600, \"currency\": \"VND\"}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC14b - Invalid Payment Method On Payment API -> 400",
+          "description": "Direct payment API check aligned to the PDF invalid-payment-method case.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(400);",
+                  "const body = pm.response.json();",
+                  "pm.test('invalid method is rejected', function () {",
+                  "  pm.expect(String(body.error || '')).to.include('Invalid payment method');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{customerUserId}}\",\n  \"booking_id\": \"BK_INVALID_{{runId}}\",\n  \"amount\": 50000,\n  \"payment_method\": \"invalid_card\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "payments"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC14."
+    },
+    {
+      "name": "TC15",
+      "item": [
+        {
+          "name": "TC15 - ETA With Distance 0",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('eta is not negative', function () {",
+                  "  pm.expect(body.eta).to.be.at.least(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/eta/predict",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "eta",
+                "predict"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC15."
+    },
+    {
+      "name": "TC16",
+      "item": [
+        {
+          "name": "TC16 - Pricing With demand_index = 0",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('surge is never below 1', function () {",
+                  "  pm.expect(body.surge_multiplier).to.be.at.least(1);",
+                  "});",
+                  "pm.test('price stays valid', function () {",
+                  "  pm.expect(body.price).to.be.a('number').and.to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"demand_index\": 0,\n  \"supply_index\": 1,\n  \"vehicleType\": \"{{vehicleType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pricing/estimate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pricing",
+                "estimate"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC16."
+    },
+    {
+      "name": "TC17",
+      "item": [
+        {
+          "name": "TC17 - Fraud API Missing Field -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(400);",
+                  "const body = pm.response.json();",
+                  "pm.test('error is missing required fields', function () {",
+                  "  pm.expect(body.error).to.eql('missing required fields');",
+                  "  pm.expect(body.missing_fields).to.be.an('array').and.to.have.length.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{customerUserId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fraud",
+                "check"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC17."
+    },
+    {
+      "name": "TC18",
+      "item": [
+        {
+          "name": "TC18 - Unauthorized Request -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(401);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/me/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "me",
+                "active"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC18."
+    },
+    {
+      "name": "TC19",
+      "item": [
+        {
+          "name": "TC19 - Duplicate Booking Request Step 1",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('duplicateBookingKey', `dup-${pm.collectionVariables.get('runId')}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('first idempotent request succeeds', function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('duplicateBookingId', body.bookingId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{duplicateBookingKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.761, \"lng\": 106.661},\n  \"dropoff\": {\"lat\": 10.772, \"lng\": 106.702},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 26000, \"distanceM\": 5200, \"durationS\": 620, \"currency\": \"VND\"}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC19 - Duplicate Booking Request Step 2 Replay",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('replay returns success', function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('same booking is returned', function () {",
+                  "  pm.expect(body.bookingId).to.eql(pm.collectionVariables.get('duplicateBookingId'));",
+                  "});",
+                  "pm.test('response indicates deduplication', function () {",
+                  "  pm.expect(body.deduplicated).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{duplicateBookingKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.761, \"lng\": 106.661},\n  \"dropoff\": {\"lat\": 10.772, \"lng\": 106.702},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 26000, \"distanceM\": 5200, \"durationS\": 620, \"currency\": \"VND\"}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC19."
+    },
+    {
+      "name": "TC20",
+      "item": [
+        {
+          "name": "TC20 - Payload Too Large -> 413",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('largePayload', JSON.stringify({",
+                  "  identifier: `too-large-${pm.collectionVariables.get('runId')}@test.com`,",
+                  "  password: 'Test@123456',",
+                  "  role: 'USER',",
+                  "  blob: 'x'.repeat(1100000)",
+                  "}));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(413);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{largePayload}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC20."
+    },
+    {
+      "name": "TC21",
+      "item": [
+        {
+          "name": "TC21 - ETA Support Request For Booking Flow",
+          "description": "Direct ETA request corresponding to the booking coordinates from the PDF flow.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('eta returned', function () {",
+                  "  pm.expect(body.eta).to.be.a('number').and.to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/eta/predict",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "eta",
+                "predict"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC21."
+    },
+    {
+      "name": "TC22",
+      "item": [
+        {
+          "name": "TC22 - Pricing Support Request For Booking Flow",
+          "description": "Direct pricing request corresponding to the booking coordinates from the PDF flow.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('price is valid', function () {",
+                  "  pm.expect(body.price).to.be.a('number').and.to.be.above(0);",
+                  "  pm.expect(body.surge_multiplier).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"vehicleType\": \"{{vehicleType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pricing/estimate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pricing",
+                "estimate"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC22."
+    },
+    {
+      "name": "TC24",
+      "description": "Booking -> Payment -> Notification success flow. Notification verification is hybrid: keep the SSE request open in a separate Postman tab to observe the payment event.",
+      "item": [
+        {
+          "name": "TC24 - Open User Notification SSE Stream (Manual)",
+          "description": "Open this request in a separate Postman tab and keep it running before executing the remaining TC24 steps. Expected on success: an SSE event named payment for the current user after payment is initialized.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/notifications/stream?token={{customerToken}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "stream"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC24 - Create Booking For Payment Success Flow",
+          "description": "Creates a booking first, then uses the booking id to initialize a successful payment.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('tc24BookingKey', `tc24-booking-${pm.collectionVariables.get('runId')}`);",
+                  "pm.collectionVariables.set('tc24PaymentKey', `tc24-payment-${pm.collectionVariables.get('runId')}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('booking created successfully', function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('tc24BookingId', body.bookingId);",
+                  "pm.test('booking id captured for payment step', function () {",
+                  "  pm.expect(pm.collectionVariables.get('tc24BookingId')).to.be.ok;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{tc24BookingKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.765, \"lng\": 106.665},\n  \"dropoff\": {\"lat\": 10.775, \"lng\": 106.705},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 50000, \"distanceM\": 5500, \"durationS\": 650, \"currency\": \"VND\"}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC24 - Initialize Successful Payment (NCB Test Card)",
+          "description": "Uses the provided NCB sandbox card details. In this repo the payment API validates the flow and publishes PAYMENT_COMPLETED. Keep the TC24 SSE request open to observe the payment notification event for the user.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('payment initialized successfully', function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('tc24TransactionId', body.transaction_id || '');",
+                  "pm.test('payment status is success or pending', function () {",
+                  "  pm.expect(['SUCCESS', 'PENDING']).to.include(body.payment_status);",
+                  "});",
+                  "pm.test('payment is linked to created booking', function () {",
+                  "  pm.expect(body.booking_id).to.eql(pm.collectionVariables.get('tc24BookingId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{tc24PaymentKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{customerUserId}}\",\n  \"booking_id\": \"{{tc24BookingId}}\",\n  \"amount\": 50000,\n  \"payment_method\": \"card\",\n  \"bank_code\": \"NCB\",\n  \"card_number\": \"9704198526191432198\",\n  \"card_holder\": \"NGUYEN VAN A\",\n  \"issue_date\": \"07/15\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "payments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC24 - Verify Booking Exists After Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('booking is still accessible after payment init', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('booking id matches TC24 booking', function () {",
+                  "  pm.expect(body.id).to.eql(pm.collectionVariables.get('tc24BookingId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{tc24BookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "{{tc24BookingId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC24 - Notification Debug (Optional Support Check)",
+          "description": "Support request only. This does not prove delivery by itself; it helps verify notification-service is alive while the SSE tab is open. For grading, show the open SSE request receiving a payment event after the payment step succeeds.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/notifications/debug",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "debug"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC33",
+      "item": [
+        {
+          "name": "TC33 - Create Booking For Payment Failure Compensation",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('compBookingKey', `comp-${pm.collectionVariables.get('runId')}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('booking created', function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('compBookingId', body.bookingId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{compBookingKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.765, \"lng\": 106.665},\n  \"dropoff\": {\"lat\": 10.775, \"lng\": 106.705},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 28000, \"distanceM\": 5500, \"durationS\": 650, \"currency\": \"VND\"}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC33 - Trigger PAYMENT_FAILED Event",
+          "description": "This simulates the payment failure leg of the PDF integration and transaction cases.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('payment failure is returned in controlled way', function () {",
+                  "  pm.response.to.have.status(402);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('payment status is FAILED', function () {",
+                  "  pm.expect(body.payment_status).to.eql('FAILED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Test-Payment-Status",
+                "value": "FAILED"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "payfail-{{runId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{customerUserId}}\",\n  \"booking_id\": \"{{compBookingId}}\",\n  \"amount\": 50000,\n  \"payment_method\": \"card\",\n  \"card_number\": \"4111111111111234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "payments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC33 - Check Booking After Payment Failure",
+          "description": "Run 1-3 seconds after the PAYMENT_FAILED request. Expected final status in this repo is CANCELLED via Kafka compensation.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{compBookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "{{compBookingId}}"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC33."
+    },
+    {
+      "name": "TC27",
+      "item": [
+        {
+          "name": "TC27 - Poll Driver Current Ride",
+          "description": "Run after at least one successful booking while the driver is ONLINE. When a ride offer exists, this returns type=offered and a ride object with id.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "if (body.ride && body.ride.id) {",
+                  "  pm.collectionVariables.set('offeredRideId', body.ride.id);",
+                  "}",
+                  "pm.test('payload has ride type', function () {",
+                  "  pm.expect(body.type).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/me/rides/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "drivers",
+                "me",
+                "rides",
+                "current"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC27 - Accept Offered Ride",
+          "description": "Run when the previous request returns type=offered and sets offeredRideId.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rides/{{offeredRideId}}/driver/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides",
+                "{{offeredRideId}}",
+                "driver",
+                "accept"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC27 - Verify Booking Became MATCHED",
+          "description": "Run after accepting the ride. Booking-consumer updates booking status asynchronously to MATCHED.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "{{bookingId}}"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC27."
+    },
+    {
+      "name": "TC28",
+      "item": [
+        {
+          "name": "TC28 - MCP Context Fetch Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('context has core MCP fields', function () {",
+                  "  pm.expect(body.ride_id).to.eql('BK123');",
+                  "  pm.expect(body.pickup).to.be.an('object');",
+                  "  pm.expect(body.drop || body.dropoff).to.be.an('object');",
+                  "  pm.expect(body.available_drivers).to.be.an('array');",
+                  "  pm.expect(body.eta).to.be.an('object');",
+                  "  pm.expect(body.pricing).to.be.an('object');",
+                  "});",
+                  "pm.test('eta payload is complete', function () {",
+                  "  pm.expect(body.eta.distanceM).to.be.a('number');",
+                  "  pm.expect(body.eta.durationS || body.eta.eta_seconds).to.be.a('number');",
+                  "});",
+                  "pm.test('pricing payload is complete', function () {",
+                  "  pm.expect(body.pricing.fare || body.pricing.price).to.be.a('number');",
+                  "  pm.expect(body.pricing.surge_multiplier).to.be.a('number');",
+                  "});",
+                  "pm.test('tool calls succeeded without permission error', function () {",
+                  "  pm.expect(body.tools_called).to.be.an('array').with.lengthOf.at.least(3);",
+                  "  const toolMap = Object.fromEntries(body.tools_called.map(t => [t.tool, t]));",
+                  "  pm.expect(toolMap.driver_service.success).to.eql(true);",
+                  "  pm.expect(toolMap.eta_service.success).to.eql(true);",
+                  "  pm.expect(toolMap.pricing_service.success).to.eql(true);",
+                  "  pm.expect(String(toolMap.driver_service.error || '')).to.not.match(/permission|unauthorized|forbidden/i);",
+                  "  pm.expect(String(toolMap.eta_service.error || '')).to.not.match(/permission|unauthorized|forbidden/i);",
+                  "  pm.expect(String(toolMap.pricing_service.error || '')).to.not.match(/permission|unauthorized|forbidden/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ride_id\": \"BK123\",\n  \"pickup\": { \"lat\": 10.76, \"lng\": 106.66 },\n  \"dropoff\": { \"lat\": 10.77, \"lng\": 106.70 },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"traffic_level\": 0.7,\n  \"demand_index\": 1.5,\n  \"supply_index\": 0.8\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "context"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC28."
+    },
+    {
+      "name": "TC32",
+      "item": [
+        {
+          "name": "TC32 - Create Booking With Simulated Failure After Insert",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const rollbackId = '00000000-0000-4000-8000-' + String(Date.now()).padStart(12, '0').slice(-12);",
+                  "pm.collectionVariables.set('rollbackBookingId', rollbackId);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('simulate mid-transaction failure returns server error', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([500]);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('failure message indicates simulated rollback case', function () {",
+                  "  pm.expect(String(body.error || '')).to.match(/simulated failure/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "X-Test-Simulate-Failure",
+                "value": "after_booking_insert"
+              },
+              {
+                "key": "X-Test-Booking-Id",
+                "value": "{{rollbackBookingId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": { \"lat\": 10.76, \"lng\": 106.66, \"address\": \"Rollback Pickup\" },\n  \"dropoff\": { \"lat\": 10.77, \"lng\": 106.70, \"address\": \"Rollback Dropoff\" },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 50000,\n    \"distanceM\": 5000,\n    \"durationS\": 600,\n    \"currency\": \"VND\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC32 - Verify Booking Was Rolled Back",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rolled back booking does not exist in DB', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{rollbackBookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "{{rollbackBookingId}}"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC32."
+    },
+    {
+      "name": "TC42",
+      "item": [
+        {
+          "name": "TC42 - Pricing Surge High Demand -> > 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('surge is above 1 and capped sanely', function () {",
+                  "  pm.expect(body.surge_multiplier).to.be.above(1);",
+                  "  pm.expect(body.surge_multiplier).to.be.at.most(5);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"demand_index\": 2,\n  \"supply_index\": 1,\n  \"vehicleType\": \"{{vehicleType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pricing/estimate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pricing",
+                "estimate"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC42."
+    },
+    {
+      "name": "TC43",
+      "item": [
+        {
+          "name": "TC43 - Fraud Score Above Threshold -> flagged",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('fraud result is flagged', function () {",
+                  "  pm.expect(body.flagged).to.eql(true);",
+                  "  pm.expect(body.fraud_score).to.be.above(body.threshold);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{customerUserId}}\",\n  \"driver_id\": \"{{driverId}}\",\n  \"booking_id\": \"BK_FRAUD_{{runId}}\",\n  \"amount\": 9000000,\n  \"location\": {\"lat\": 35.0, \"lng\": 139.0},\n  \"device_fingerprint\": \"device-demo\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fraud",
+                "check"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC43."
+    },
+    {
+      "name": "TC45",
+      "item": [
+        {
+          "name": "TC45 - Forecast Returns Correct Format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('forecast schema is present', function () {",
+                  "  pm.expect(body).to.have.property('zone');",
+                  "  pm.expect(body).to.have.property('hour');",
+                  "  pm.expect(body).to.have.property('demand_index');",
+                  "  pm.expect(body).to.have.property('supply_index');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/eta/forecast?zone=default&hour=8",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "eta",
+                "forecast"
+              ],
+              "query": [
+                {
+                  "key": "zone",
+                  "value": "default"
+                },
+                {
+                  "key": "hour",
+                  "value": "8"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC45."
+    },
+    {
+      "name": "TC46",
+      "item": [
+        {
+          "name": "TC46 - ETA Model Version Is Returned",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('model_version exists', function () {",
+                  "  pm.expect(body.model_version).to.be.a('string').and.to.have.length.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/eta/model-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "eta",
+                "model-info"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC46."
+    },
+    {
+      "name": "TC48",
+      "item": [
+        {
+          "name": "TC48 - Drift Detection Status",
+          "description": "Seed the ETA service first with repeated /eta/predict requests if you want non-trivial drift metrics.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/eta/drift",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "eta",
+                "drift"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC48."
+    },
+    {
+      "name": "TC50",
+      "item": [
+        {
+          "name": "TC50 - Outlier Input Does Not Crash ETA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request is handled', function () {",
+                  "  pm.expect([200, 400, 422]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 1000,\n  \"traffic_level\": 0.5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/eta/predict",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "eta",
+                "predict"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC50."
+    },
+    {
+      "name": "TC67/85/98",
+      "item": [
+        {
+          "name": "TC67/85/98 - Gateway Rate Limit Smoke Check",
+          "description": "Single request to inspect rate limit headers. Full abuse validation should be run by Newman/k6/Artillery, not a single Postman click.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC67/85/98."
+    },
+    {
+      "name": "TC83/92",
+      "item": [
+        {
+          "name": "TC83/92 - Tampered JWT -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(401);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbl8wMDEiLCJyb2xlIjoiQURNSU4iLCJleHAiOjQ3MzM5ODQwMDB9.invalidsignature"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/me/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "me",
+                "active"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC83/92."
+    },
+    {
+      "name": "TC84/89/95",
+      "item": [
+        {
+          "name": "TC84/89/95 - RBAC Forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(403);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "admin",
+                "users"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC84/89/95."
+    },
+    {
+      "name": "TC102/113",
+      "item": [
+        {
+          "name": "TC102/113 - Health And Metrics",
+          "description": "Basic deployment and monitoring smoke checks from later rubric levels.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC102/113."
+    }
+  ]
+}

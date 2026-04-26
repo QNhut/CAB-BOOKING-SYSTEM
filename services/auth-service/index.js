@@ -7,8 +7,10 @@ import cors from "cors";
 import fs from "fs";
 import path from "path";
 import { createLogger } from "../../shared/logger.js";
+import { createHttpMetrics } from "../../shared/http-metrics.js";
 
 const log = createLogger("auth-service");
+const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("auth-service");
 
 /**
  * ENV required:
@@ -30,7 +32,7 @@ const JWT_ISSUER = "taxi-auth-service";
 const JWT_AUDIENCE = "taxi-platform";
 
 if (!DATABASE_URL) {
-  console.error("❌ DATABASE_URL missing");
+  log.error("auth_database_url_missing");
   process.exit(1);
 }
 
@@ -40,7 +42,7 @@ const pool = new Pool({ connectionString: DATABASE_URL });
 async function runMigrations() {
   const dir = path.join(process.cwd(), "migrations");
   if (!fs.existsSync(dir)) {
-    console.log("⚠️  No migrations folder, skipping migrations");
+    log.warn("auth_migrations_missing");
     return;
   }
   const files = fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
@@ -53,10 +55,10 @@ async function runMigrations() {
       if (err.code !== '42P07') {
         throw err;
       }
-      console.log(`⏭️  Skipping ${f} (already applied)`);
+      log.info("auth_migration_skipped", { migration: f, reason: "already_applied" });
     }
   }
-  console.log("✅ auth migrations applied:", files.join(", "));
+  log.info("auth_migrations_applied", { migrations: files });
 }
 
 // Utilities
@@ -154,6 +156,7 @@ function authMiddleware(req, res, next) {
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(metricsMiddleware);
 
 // Health check
 app.get("/health", async (req, res) => {
@@ -172,6 +175,7 @@ app.get("/auth/health", async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+app.get("/metrics", metricsEndpoint);
 
 // POST /auth/register
 app.post("/auth/register", async (req, res) => {
@@ -244,7 +248,7 @@ app.post("/auth/register", async (req, res) => {
     try {
       await client.query("ROLLBACK");
     } catch {}
-    console.error("[AUTH] register error:", err.message);
+    log.error("auth_register_error", { error: err.message });
     res.status(500).json({ error: "Internal server error" });
   } finally {
     client.release();
@@ -338,7 +342,7 @@ app.post("/auth/login", async (req, res) => {
       expiresIn: JWT_ACCESS_TTL,
     });
   } catch (err) {
-    console.error("[AUTH] login error:", err.message);
+    log.error("auth_login_error", { error: err.message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -436,7 +440,7 @@ app.post("/auth/refresh", async (req, res) => {
     try {
       await client.query("ROLLBACK");
     } catch {}
-    console.error("[AUTH] refresh error:", err.message);
+    log.error("auth_refresh_error", { error: err.message });
     res.status(500).json({ error: "Internal server error" });
   } finally {
     client.release();
@@ -461,7 +465,7 @@ app.post("/auth/logout", async (req, res) => {
 
     res.json({ ok: true, message: "Logged out successfully" });
   } catch (err) {
-    console.error("[AUTH] logout error:", err.message);
+    log.error("auth_logout_error", { error: err.message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -494,7 +498,7 @@ app.get("/auth/me", authMiddleware, async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("[AUTH] me error:", err.message);
+    log.error("auth_me_error", { error: err.message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -522,7 +526,7 @@ app.get("/auth/profile", authMiddleware, async (req, res) => {
 
     return res.json({ role, profile: null });
   } catch (err) {
-    console.error("[AUTH] profile GET error:", err.message);
+    log.error("auth_profile_get_error", { error: err.message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -576,7 +580,7 @@ app.put("/auth/profile", authMiddleware, async (req, res) => {
 
     return res.status(400).json({ error: "Unsupported role" });
   } catch (err) {
-    console.error("[AUTH] profile PUT error:", err.message);
+    log.error("auth_profile_put_error", { error: err.message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -773,21 +777,23 @@ async function main() {
          ON CONFLICT (identifier) DO NOTHING`,
         [hash]
       );
-      console.log("🔑 Default ADMIN account created: admin@taxi.com / admin123");
+      log.info("auth_default_admin_seeded", { identifier: "admin@taxi.com" });
     }
   } catch (e) {
-    console.warn("⚠️  Could not seed admin account:", e.message);
+    log.warn("auth_default_admin_seed_failed", { error: e.message });
   }
 
   app.listen(PORT, () => {
-    console.log(`✅ Auth Service listening on http://localhost:${PORT}`);
-    console.log(`   JWT Access TTL: ${JWT_ACCESS_TTL}s (${JWT_ACCESS_TTL / 60} min)`);
-    console.log(`   JWT Refresh TTL: ${JWT_REFRESH_TTL}s (${JWT_REFRESH_TTL / 86400} days)`);
+    log.info("auth_service_started", {
+      port: PORT,
+      jwt_access_ttl_seconds: JWT_ACCESS_TTL,
+      jwt_refresh_ttl_seconds: JWT_REFRESH_TTL,
+    });
   });
 }
 
 main().catch((err) => {
-  console.error("❌ auth-service fatal:", err);
+  log.error("auth_service_fatal", { error: err.message, stack: err.stack });
   process.exit(1);
 });
 

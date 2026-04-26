@@ -16,6 +16,37 @@ export interface VnpayUrlResponse {
   amount: number;
 }
 
+export interface PendingVnpayBookingDraft {
+  orderId: string;
+  userId?: string | null;
+  pickup: { lat: number; lng: number; label?: string; address?: string };
+  dropoff: { lat: number; lng: number; label?: string; address?: string };
+  vehicleType: string;
+  pricingSnapshot: {
+    fare: number;
+    distanceM: number;
+    durationS: number;
+    currency?: string;
+  };
+  createdAt: string;
+}
+
+export interface VnpayVerifyResponse {
+  success: boolean;
+  checksumValid: boolean;
+  code: string;
+  orderId: string | null;
+  amount: number | null;
+  transactionNo: string | null;
+  bankCode: string | null;
+}
+
+const PENDING_VNPAY_PREFIX = "pending-vnpay-booking:";
+
+function getPendingKey(orderId: string) {
+  return `${PENDING_VNPAY_PREFIX}${orderId}`;
+}
+
 /**
  * POST /payment/order/create_payment_url
  * Returns a signed VNPay redirect URL.
@@ -30,4 +61,31 @@ export async function createVnpayUrl(payload: VnpayUrlRequest): Promise<VnpayUrl
     { headers: { "Content-Type": "application/json" } }
   );
   return res.data;
+}
+
+export async function verifyVnpayReturn(params: Record<string, string>): Promise<VnpayVerifyResponse> {
+  const res = await axios.post<VnpayVerifyResponse>(
+    `${ENV.PAYMENT_URL}/payment/order/verify_return`,
+    params,
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return res.data;
+}
+
+export function savePendingVnpayBookingDraft(draft: PendingVnpayBookingDraft) {
+  localStorage.setItem(getPendingKey(draft.orderId), JSON.stringify(draft));
+}
+
+export function loadPendingVnpayBookingDraft(orderId: string): PendingVnpayBookingDraft | null {
+  const raw = localStorage.getItem(getPendingKey(orderId));
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as PendingVnpayBookingDraft;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingVnpayBookingDraft(orderId: string) {
+  localStorage.removeItem(getPendingKey(orderId));
 }

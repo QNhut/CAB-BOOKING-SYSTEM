@@ -11,11 +11,11 @@
       "title": "Request Rate (req/s)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "rate(http_requests_total[1m])",
-          "legendFormat": "{{method}} {{route}} {{status_code}}"
+          "expr": "sum by (service_name) (rate(request_count_total[1m]))",
+          "legendFormat": "{{service_name}}"
         }
       ],
       "fieldConfig": {
@@ -29,15 +29,15 @@
       "title": "P95 Latency (ms)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) * 1000",
-          "legendFormat": "P95"
+          "expr": "(histogram_quantile(0.95, sum by (le, service_name) (rate(request_latency_seconds_bucket[5m]))) * 1000) or on(service_name) (0 * max by (service_name) (request_count_total))",
+          "legendFormat": "{{service_name}} p95"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])) * 1000",
-          "legendFormat": "P99"
+          "expr": "(histogram_quantile(0.99, sum by (le, service_name) (rate(request_latency_seconds_bucket[5m]))) * 1000) or on(service_name) (0 * max by (service_name) (request_count_total))",
+          "legendFormat": "{{service_name}} p99"
         }
       ],
       "fieldConfig": {
@@ -58,10 +58,10 @@
       "title": "Error Rate (%)",
       "type": "stat",
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
+          "expr": "((sum(rate(http_request_count_total{status_code=~\"5..\"}[5m])) or vector(0)) / clamp_min((sum(rate(http_request_count_total[5m])) or vector(0)), 0.000001)) * 100",
           "legendFormat": "Error %"
         }
       ],
@@ -82,7 +82,7 @@
       "title": "Active Services",
       "type": "stat",
       "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": "Prometheus",
       "targets": [
         {
           "expr": "count(up == 1)",
@@ -105,7 +105,7 @@
       "title": "CPU Usage",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": "Prometheus",
       "targets": [
         {
           "expr": "rate(process_cpu_seconds_total[5m]) * 100",
@@ -123,7 +123,7 @@
       "title": "Memory Usage (MB)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": "Prometheus",
       "targets": [
         {
           "expr": "process_resident_memory_bytes / 1024 / 1024",
@@ -141,7 +141,7 @@
       "title": "ETA Drift Detection",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": "Prometheus",
       "targets": [
         {
           "expr": "eta_drift_z_score",
@@ -162,7 +162,7 @@
       "title": "Service Health",
       "type": "table",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": "Prometheus",
       "targets": [
         {
           "expr": "up",

@@ -56,3 +56,18 @@ scrape_configs:
     static_configs:
       - targets: ["fraud-service:8010"]
     metrics_path: /metrics
+
+  - job_name: "payment-service"
+    static_configs:
+      - targets: ["payment-service:8888"]
+    metrics_path: /metrics
+
+  - job_name: "agent-service"
+    static_configs:
+      - targets: ["agent-service:8012"]
+    metrics_path: /metrics
+
+  - job_name: "user-service"
+    static_configs:
+      - targets: ["user-service:8013"]
+    metrics_path: /metrics

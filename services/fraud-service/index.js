@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import Redis from "ioredis";
+import { createLogger } from "../../shared/logger.js";
+import { createHttpMetrics } from "../../shared/http-metrics.js";
 
 const app = express();
 app.use(cors());
@@ -9,12 +11,15 @@ app.use(express.json());
 const PORT = process.env.PORT || 8010;
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const FRAUD_THRESHOLD = parseFloat(process.env.FRAUD_THRESHOLD || "0.7");
+const log = createLogger("fraud-service");
+const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("fraud-service");
+app.use(metricsMiddleware);
 
 let redis;
 try {
   redis = new Redis(REDIS_URL);
 } catch (e) {
-  console.warn("[FRAUD] Redis not available");
+  log.warn("fraud_redis_unavailable", { error: e.message });
 }
 
 // Required fields for fraud check
@@ -99,7 +104,13 @@ app.post("/fraud/check", async (req, res) => {
     const result = await calculateFraudScore(body);
 
     // Log for audit
-    console.log(`[FRAUD] user=${body.user_id} booking=${body.booking_id} score=${result.fraud_score} flagged=${result.flagged}`);
+    log.info("fraud_check_completed", {
+      user_id: body.user_id,
+      booking_id: body.booking_id,
+      fraud_score: result.fraud_score,
+      flagged: result.flagged,
+      reasons: result.reasons,
+    });
 
     res.json({
       ...result,
@@ -132,7 +143,8 @@ app.get("/health", async (req, res) => {
   try { if (redis) { await redis.ping(); redisOk = true; } } catch {}
   res.json({ ok: true, service: "fraud-service", redis: redisOk });
 });
+app.get("/metrics", metricsEndpoint);
 
 app.listen(PORT, () => {
-  console.log(`[FRAUD] Fraud detection service on http://localhost:${PORT}`);
+  log.info("fraud_service_started", { port: Number(PORT), threshold: FRAUD_THRESHOLD });
 });

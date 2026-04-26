@@ -1,28 +1,92 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { createBooking } from "../api/booking";
+import {
+  clearPendingVnpayBookingDraft,
+  loadPendingVnpayBookingDraft,
+  verifyVnpayReturn,
+} from "../api/payment";
 
-/**
- * VNPay redirects the browser here after the user finishes (or cancels) payment.
- * URL looks like: /payment/return?vnp_ResponseCode=00&vnp_TxnRef=...&vnp_Amount=...&...
- *
- * We only READ the query params here — the authoritative update is done
- * server-side via the IPN callback (→ Kafka → SSE).
- */
 export function PaymentReturn() {
   const [params] = useSearchParams();
   const [status, setStatus] = useState<"SUCCESS" | "FAILED" | "PENDING">("PENDING");
+  const [message, setMessage] = useState("Dang xu ly ket qua thanh toan...");
+  const [bookingId, setBookingId] = useState<string | null>(null);
 
-  const rspCode  = params.get("vnp_ResponseCode");
-  const orderId  = params.get("vnp_TxnRef");
-  const rawAmt   = params.get("vnp_Amount");   // VNPay sends amount × 100
-  const bank     = params.get("vnp_BankCode");
-  const txnNo    = params.get("vnp_TransactionNo");
-  const amount   = rawAmt ? Math.round(Number(rawAmt) / 100) : null;
+  const rspCode = params.get("vnp_ResponseCode");
+  const orderId = params.get("vnp_TxnRef");
+  const rawAmt = params.get("vnp_Amount");
+  const bank = params.get("vnp_BankCode");
+  const txnNo = params.get("vnp_TransactionNo");
+  const amount = rawAmt ? Math.round(Number(rawAmt) / 100) : null;
 
   useEffect(() => {
-    if (rspCode === "00") setStatus("SUCCESS");
-    else if (rspCode !== null) setStatus("FAILED");
-  }, [rspCode]);
+    let cancelled = false;
+
+    async function finalizeBooking() {
+      if (!rspCode) return;
+
+      if (rspCode !== "00") {
+        setStatus("FAILED");
+        setMessage(`Thanh toan that bai (ma loi: ${rspCode}). Booking chua duoc tao.`);
+        return;
+      }
+
+      if (!orderId) {
+        setStatus("FAILED");
+        setMessage("Thieu ma giao dich VNPay. Booking chua duoc tao.");
+        return;
+      }
+
+      try {
+        const verified = await verifyVnpayReturn(Object.fromEntries(params.entries()));
+        if (!verified.success) {
+          setStatus("FAILED");
+          setMessage("Khong xac minh duoc giao dich VNPay. Booking chua duoc tao.");
+          return;
+        }
+
+        const draft = loadPendingVnpayBookingDraft(orderId);
+        if (!draft) {
+          setStatus("SUCCESS");
+          setMessage("Thanh toan thanh cong. Khong tim thay du lieu booking tam de tao booking.");
+          return;
+        }
+
+        const booking = await createBooking({
+          userId: draft.userId ?? null,
+          pickup: draft.pickup,
+          dropoff: draft.dropoff,
+          vehicleType: draft.vehicleType,
+          paymentMethod: "VNPAY",
+          paymentStatus: "PAID",
+          pricingSnapshot: draft.pricingSnapshot,
+        }, {
+          idempotencyKey: `vnpay:${orderId}`,
+        });
+
+        if (cancelled) return;
+
+        clearPendingVnpayBookingDraft(orderId);
+        setBookingId(booking.bookingId || null);
+        setStatus("SUCCESS");
+        setMessage("Thanh toan thanh cong va booking da duoc tao.");
+      } catch (error: any) {
+        if (cancelled) return;
+        setStatus("FAILED");
+        setMessage(
+          error?.response?.data?.error ||
+          error?.message ||
+          "Khong the tao booking sau khi thanh toan."
+        );
+      }
+    }
+
+    finalizeBooking();
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId, params, rspCode]);
 
   const isPending = status === "PENDING";
   const isSuccess = status === "SUCCESS";
@@ -58,9 +122,9 @@ export function PaymentReturn() {
   return (
     <div style={containerStyle}>
       <div style={cardStyle}>
-        {isPending && <div style={iconStyle}>⏳</div>}
-        {isSuccess && <div style={iconStyle}>✅</div>}
-        {!isPending && !isSuccess && <div style={iconStyle}>❌</div>}
+        {isPending && <div style={iconStyle}>...</div>}
+        {isSuccess && <div style={iconStyle}>OK</div>}
+        {!isPending && !isSuccess && <div style={iconStyle}>X</div>}
 
         <h2 style={{
           margin: "0 0 8px",
@@ -68,21 +132,18 @@ export function PaymentReturn() {
           fontSize: 24,
           fontWeight: 700,
         }}>
-          {isPending && "Đang xử lý…"}
-          {isSuccess && "Thanh toán thành công!"}
-          {!isPending && !isSuccess && "Thanh toán thất bại"}
+          {isPending && "Dang xu ly..."}
+          {isSuccess && "Thanh toan thanh cong!"}
+          {!isPending && !isSuccess && "Thanh toan that bai"}
         </h2>
 
         {!isPending && (
           <p style={{ color: "#666", marginBottom: 24, fontSize: 14 }}>
-            {isSuccess
-              ? "Giao dịch của bạn đã được xác nhận. Bạn có thể đóng tab này."
-              : `Giao dịch không thành công (mã lỗi: ${rspCode}). Vui lòng thử lại.`}
+            {message}
           </p>
         )}
 
-        {/* Order detail table */}
-        {(orderId || amount || bank || txnNo) && (
+        {(orderId || amount || bank || txnNo || bookingId) && (
           <table style={{
             width: "100%",
             borderCollapse: "collapse",
@@ -93,27 +154,33 @@ export function PaymentReturn() {
             <tbody>
               {orderId && (
                 <tr>
-                  <td style={{ padding: "6px 0", color: "#888", width: "45%" }}>Mã đơn hàng</td>
+                  <td style={{ padding: "6px 0", color: "#888", width: "45%" }}>Ma giao dich</td>
                   <td style={{ padding: "6px 0", fontWeight: 600 }}>{orderId}</td>
+                </tr>
+              )}
+              {bookingId && (
+                <tr>
+                  <td style={{ padding: "6px 0", color: "#888" }}>Booking ID</td>
+                  <td style={{ padding: "6px 0", fontWeight: 600 }}>{bookingId}</td>
                 </tr>
               )}
               {amount !== null && (
                 <tr>
-                  <td style={{ padding: "6px 0", color: "#888" }}>Số tiền</td>
+                  <td style={{ padding: "6px 0", color: "#888" }}>So tien</td>
                   <td style={{ padding: "6px 0", fontWeight: 600 }}>
-                    {amount.toLocaleString("vi-VN")} ₫
+                    {amount.toLocaleString("vi-VN")} VND
                   </td>
                 </tr>
               )}
               {bank && (
                 <tr>
-                  <td style={{ padding: "6px 0", color: "#888" }}>Ngân hàng</td>
+                  <td style={{ padding: "6px 0", color: "#888" }}>Ngan hang</td>
                   <td style={{ padding: "6px 0", fontWeight: 600 }}>{bank}</td>
                 </tr>
               )}
               {txnNo && (
                 <tr>
-                  <td style={{ padding: "6px 0", color: "#888" }}>Mã giao dịch</td>
+                  <td style={{ padding: "6px 0", color: "#888" }}>Ma VNPay</td>
                   <td style={{ padding: "6px 0", fontWeight: 600 }}>{txnNo}</td>
                 </tr>
               )}
@@ -134,7 +201,7 @@ export function PaymentReturn() {
             fontSize: 15,
           }}
         >
-          ← Về trang đặt xe
+          Ve trang dat xe
         </Link>
       </div>
     </div>

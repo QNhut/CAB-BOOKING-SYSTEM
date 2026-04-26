@@ -1,6 +1,7 @@
 import { Kafka } from "kafkajs";
 import { Pool } from "pg";
 import crypto from "crypto";
+import { createLogger } from "../../shared/logger.js";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -9,20 +10,23 @@ const kafka = new Kafka({
   brokers: (process.env.KAFKA_BROKERS || "kafka:9092").split(","),
 });
 
-const consumer = kafka.consumer({ groupId: process.env.KAFKA_GROUP_ID || "booking-service" });
-const topic = process.env.KAFKA_RIDE_TOPIC || "taxi.rides";
+const consumer = kafka.consumer({
+  groupId: process.env.KAFKA_GROUP_ID || "booking-compensation-service",
+});
+const rideTopic = process.env.KAFKA_RIDE_TOPIC || "taxi.rides";
+const paymentTopic = process.env.KAFKA_PAYMENT_TOPIC || "taxi.payments";
+const log = createLogger("booking-consumer");
 
 await consumer.connect();
-await consumer.subscribe({ topic, fromBeginning: false });
+await consumer.subscribe({ topics: [rideTopic, paymentTopic], fromBeginning: false });
 
-console.log("✅ booking-consumer started");
+log.info("booking_consumer_started", { topics: [rideTopic, paymentTopic] });
 
 await consumer.run({
   eachMessage: async ({ message }) => {
     if (!message.value) return;
     const evt = JSON.parse(message.value.toString());
 
-    // ── RIDE_ACCEPTED: booking -> MATCHED ──────────────────────────────
     if (evt.eventType === "RIDE_ACCEPTED") {
       const { bookingId, rideId, driverId } = evt.payload || {};
       if (!bookingId) return;
@@ -45,20 +49,18 @@ await consumer.run({
           );
         }
         await client.query("COMMIT");
-        console.log(`[BOOKING] RIDE_ACCEPTED: booking=${bookingId} -> MATCHED ride=${rideId}`);
+        log.info("booking_consumer_ride_accepted", { booking_id: bookingId, ride_id: rideId, driver_id: driverId });
       } catch (e) {
         try { await client.query("ROLLBACK"); } catch {}
-        console.error("[BOOKING] RIDE_ACCEPTED error:", e.message);
+        log.error("booking_consumer_ride_accepted_error", { error: e.message, booking_id: bookingId, ride_id: rideId });
       } finally {
         client.release();
       }
       return;
     }
 
-    // ── RIDE_COMPLETED: booking -> COMPLETED ───────────────────────────
     if (evt.eventType === "RIDE_COMPLETED") {
       const { rideId, bookingId } = evt.payload || {};
-      // Support lookup by bookingId (preferred) or rideId
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -72,7 +74,6 @@ await consumer.run({
           );
           updated = r.rowCount;
         }
-        // Fallback: lookup by ride_id
         if (!updated && rideId) {
           const r = await client.query(
             `UPDATE bookings
@@ -83,17 +84,16 @@ await consumer.run({
           updated = r.rowCount;
         }
         await client.query("COMMIT");
-        console.log(`[BOOKING] RIDE_COMPLETED: ${updated} booking(s) -> COMPLETED (rideId=${rideId}, bookingId=${bookingId})`);
+        log.info("booking_consumer_ride_completed", { updated_count: updated, ride_id: rideId || null, booking_id: bookingId || null });
       } catch (e) {
         try { await client.query("ROLLBACK"); } catch {}
-        console.error("[BOOKING] RIDE_COMPLETED error:", e.message);
+        log.error("booking_consumer_ride_completed_error", { error: e.message, ride_id: rideId || null, booking_id: bookingId || null });
       } finally {
         client.release();
       }
       return;
     }
 
-    // ── PAYMENT_FAILED: booking -> CANCELLED (compensation) ────────────
     if (evt.eventType === "PAYMENT_FAILED") {
       const { bookingId } = evt.payload || {};
       if (!bookingId) return;
@@ -101,7 +101,8 @@ await consumer.run({
       try {
         await client.query("BEGIN");
         const r = await client.query(
-          `UPDATE bookings SET status='CANCELLED', updated_at=now()
+          `UPDATE bookings
+           SET status='CANCELLED', updated_at=now()
            WHERE id=$1 AND status NOT IN ('COMPLETED','CANCELLED')`,
           [bookingId]
         );
@@ -113,14 +114,14 @@ await consumer.run({
           );
         }
         await client.query("COMMIT");
-        console.log(`[BOOKING] PAYMENT_FAILED: booking=${bookingId} -> CANCELLED`);
+        log.info("booking_consumer_payment_failed", { booking_id: bookingId, status: "CANCELLED" });
       } catch (e) {
         try { await client.query("ROLLBACK"); } catch {}
-        console.error("[BOOKING] PAYMENT_FAILED error:", e.message);
+        log.error("booking_consumer_payment_failed_error", { error: e.message, booking_id: bookingId });
       } finally {
         client.release();
       }
       return;
     }
-  }
+  },
 });

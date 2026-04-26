@@ -11,6 +11,10 @@
  *   });
  */
 
+const { createLogger } = require("./logger.cjs");
+
+const log = createLogger("kafka-dlq");
+
 async function sendToDLQ(producer, dlqTopic, message, error, originalTopic) {
   const headers = {
     ...message.headers,
@@ -28,14 +32,11 @@ async function sendToDLQ(producer, dlqTopic, message, error, originalTopic) {
     }],
   });
 
-  console.log(JSON.stringify({
-    level: "warn",
-    service: "kafka-dlq",
-    msg: "message_sent_to_dlq",
+  log.warn("message_sent_to_dlq", {
     topic: dlqTopic,
     originalTopic,
     error: error?.message,
-  }));
+  });
 }
 
 function withDLQ(producer, dlqTopic, maxRetries = 3, handler) {
@@ -53,27 +54,21 @@ function withDLQ(producer, dlqTopic, maxRetries = 3, handler) {
       retryCount.set(key, count);
 
       if (count >= maxRetries) {
-        console.error(JSON.stringify({
-          level: "error",
-          service: "kafka-dlq",
-          msg: "max_retries_exceeded",
+        log.error("max_retries_exceeded", {
           topic,
           partition,
           offset: message.offset,
           retries: count,
           error: error.message,
-        }));
+        });
         await sendToDLQ(producer, dlqTopic, message, error, topic);
         retryCount.delete(key);
       } else {
-        console.warn(JSON.stringify({
-          level: "warn",
-          service: "kafka-dlq",
-          msg: "retry_scheduled",
+        log.warn("retry_scheduled", {
           topic,
           retries: count,
           maxRetries,
-        }));
+        });
         throw error; // re-throw so KafkaJS retries
       }
     }

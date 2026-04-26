@@ -5,12 +5,16 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var order = require('./routes/order');
+const { handlePayment } = require("./payment-api");
+const { createHttpMetrics } = require("../../shared/http-metrics.cjs");
 
 var app = express();
 const cors = require("cors");
+const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("payment-service");
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(metricsMiddleware);
 
 
 
@@ -27,6 +31,8 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/order', order);
+app.post('/payments', handlePayment);
+app.get('/metrics', metricsEndpoint);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

@@ -6,6 +6,8 @@ const request = require('request');
 const moment = require('moment');
 const config = require('config');
 const { getClientIp, sha512 } = require('../../lib/vnpay');
+const { createLogger } = require('../../../../shared/logger.cjs');
+const log = createLogger('payment-service');
 
 const refund = (req, res, next) => {
     process.env.TZ = 'Asia/Ho_Chi_Minh';
@@ -61,7 +63,11 @@ const refund = (req, res, next) => {
         json: true,
         body: dataObj
     }, function (error, response, body) {
-        console.log(response);
+        if (error) {
+            log.error('payment_refund_error', { error: error.message, order_id: vnp_TxnRef });
+            return;
+        }
+        log.info('payment_refund_response', { order_id: vnp_TxnRef, status_code: response?.statusCode || null, body: body || null });
     });
 };
 

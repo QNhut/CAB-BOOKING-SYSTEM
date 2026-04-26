@@ -3,8 +3,10 @@ import cors from "cors";
 import Redis from "ioredis";
 import { CircuitBreaker } from "../../shared/circuit-breaker.js";
 import { createLogger } from "../../shared/logger.js";
+import { createHttpMetrics } from "../../shared/http-metrics.js";
 
 const log = createLogger("agent-service");
+const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("agent-service");
 
 // ── Circuit breakers for downstream services ────────────────────────────────
 const cbEta = new CircuitBreaker("eta-service", { failureThreshold: 3, resetTimeout: 15000 });
@@ -15,6 +17,7 @@ const cbDriverAgent = new CircuitBreaker("driver-service-agent", { failureThresh
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(metricsMiddleware);
 
 const PORT = process.env.PORT || 8012;
 const REDIS_URL = process.env.REDIS_URL || "redis://redis:6379";
@@ -43,7 +46,7 @@ function logDecision(requestId, decision) {
   };
   decisionLogs.push(entry);
   if (decisionLogs.length > 1000) decisionLogs.shift();
-  console.log(JSON.stringify({ level: "info", service: "agent-service", msg: "decision_logged", ...entry }));
+  log.info("decision_logged", entry);
 }
 
 // ── Tool dispatcher ─────────────────────────────────────────────────────────
@@ -57,45 +60,54 @@ async function callTool(toolName, params, serviceUrls) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const doFetch = async () => {
+        let res;
         switch (toolName) {
           case "eta_service": {
             const url = `${serviceUrls.eta}/eta/predict`;
-            const res = await fetch(url, {
+            res = await fetch(url, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(params),
               signal: AbortSignal.timeout(3000),
             });
-            return res.json();
+            break;
           }
           case "pricing_service": {
             const url = `${serviceUrls.pricing}/pricing/estimate`;
-            const res = await fetch(url, {
+            res = await fetch(url, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(params),
               signal: AbortSignal.timeout(3000),
             });
-            return res.json();
+            break;
           }
           case "fraud_service": {
             const url = `${serviceUrls.fraud}/fraud/check`;
-            const res = await fetch(url, {
+            res = await fetch(url, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(params),
               signal: AbortSignal.timeout(3000),
             });
-            return res.json();
+            break;
           }
           case "driver_service": {
             const url = `${serviceUrls.driver}/drivers/nearby?lat=${params.lat}&lng=${params.lng}&radiusM=${params.radius || 5000}&vehicleType=${params.vehicleType || "CAR_4"}&limit=${params.limit || 10}`;
-            const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
-            return res.json();
+            res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+            break;
           }
           default:
             throw new Error(`Unknown tool: ${toolName}`);
         }
+        let data = null;
+        try {
+          data = await res.json();
+        } catch {}
+        if (!res.ok) {
+          throw new Error(data?.error || `${toolName} responded ${res.status}`);
+        }
+        return data;
       };
 
       result = cb ? await cb.exec(doFetch) : await doFetch();
@@ -113,7 +125,7 @@ async function callTool(toolName, params, serviceUrls) {
 
 // ── Score a driver (multi-criteria) ─────────────────────────────────────────
 function scoreDriver(driver, maxDistance) {
-  const dist = driver.distance || driver.dist || maxDistance;
+  const dist = driver.distance ?? driver.distanceM ?? driver.dist ?? maxDistance;
   const rating = driver.rating || driver.avg_rating || 4.0;
 
   // Normalize: lower distance = higher score, higher rating = higher score
@@ -121,7 +133,7 @@ function scoreDriver(driver, maxDistance) {
   const ratingScore = rating / 5.0;
 
   return {
-    driver_id: driver.id || driver.driver_id || driver.member,
+    driver_id: driver.id || driver.driver_id || driver.driverId || driver.member,
     distance: dist,
     rating,
     distance_score: distScore,
@@ -140,9 +152,31 @@ function ruleBasedSelect(drivers) {
   return online[0];
 }
 
+function normalizeDriver(driver) {
+  return {
+    id: driver.id || driver.driver_id || driver.driverId || driver.member,
+    distance: driver.distance ?? driver.distanceM ?? driver.dist ?? null,
+    rating: driver.rating || driver.avg_rating || 4.0,
+    status: driver.status || "ONLINE",
+  };
+}
+
+function toolSucceeded(toolResult) {
+  return Boolean(toolResult && !toolResult.error && toolResult.result && !toolResult.result.error);
+}
+
 // ── MCP context builder ─────────────────────────────────────────────────────
 async function buildMCPContext(params, serviceUrls) {
-  const { pickup, dropoff, vehicleType, requestId } = params;
+  const {
+    pickup,
+    dropoff,
+    vehicleType,
+    requestId,
+    rideId,
+    demandIndex,
+    supplyIndex,
+    trafficLevel,
+  } = params;
 
   const toolCalls = await Promise.allSettled([
     callTool("driver_service", { lat: pickup.lat, lng: pickup.lng, radius: 5000, limit: 10, vehicleType: vehicleType || "CAR_4" }, serviceUrls),
@@ -150,9 +184,15 @@ async function buildMCPContext(params, serviceUrls) {
       pickup: { lat: pickup.lat, lng: pickup.lng },
       dropoff: { lat: dropoff.lat, lng: dropoff.lng },
       vehicleType,
+      traffic_level: typeof trafficLevel === "number" ? trafficLevel : undefined,
     }, serviceUrls),
     callTool("pricing_service", {
-      pickup, dropoff, vehicleType: vehicleType || "CAR_4",
+      pickup,
+      dropoff,
+      vehicleType: vehicleType || "CAR_4",
+      demand_index: typeof demandIndex === "number" ? demandIndex : undefined,
+      supply_index: typeof supplyIndex === "number" ? supplyIndex : undefined,
+      traffic_level: typeof trafficLevel === "number" ? trafficLevel : undefined,
     }, serviceUrls),
   ]);
 
@@ -160,29 +200,35 @@ async function buildMCPContext(params, serviceUrls) {
   const etaResult    = toolCalls[1].status === "fulfilled" ? toolCalls[1].value : null;
   const pricingResult = toolCalls[2].status === "fulfilled" ? toolCalls[2].value : null;
 
-  const availableDrivers = driverResult?.result?.drivers ||
-    driverResult?.result?.nearbyDrivers || [];
+  const availableDrivers = (driverResult?.result?.drivers ||
+    driverResult?.result?.nearbyDrivers || []).map(normalizeDriver);
+  const etaPayload = toolSucceeded(etaResult) ? etaResult.result : null;
+  const pricingPayload = toolSucceeded(pricingResult) ? pricingResult.result : null;
+  const resolvedTrafficLevel = etaPayload?.traffic_level
+    ?? (typeof trafficLevel === "number" ? trafficLevel : null);
+  const resolvedDemandIndex = pricingPayload?.demand_index
+    ?? (typeof demandIndex === "number" ? demandIndex : null);
+  const resolvedSupplyIndex = pricingPayload?.supply_index
+    ?? (typeof supplyIndex === "number" ? supplyIndex : null)
+    ?? (availableDrivers.length > 0 ? Math.min(availableDrivers.length / 5, 2.0) : 0);
 
   const context = {
+    ride_id: rideId || requestId,
     request_id: requestId,
     pickup,
+    drop: dropoff,
     dropoff,
     vehicle_type: vehicleType || "CAR_4",
-    available_drivers: availableDrivers.map((d) => ({
-      id: d.id || d.driver_id || d.member,
-      distance: d.distance || d.dist,
-      rating: d.rating || d.avg_rating || 4.0,
-      status: d.status || "ONLINE",
-    })),
-    eta: etaResult?.result || null,
-    pricing: pricingResult?.result || null,
-    traffic_level: etaResult?.result?.traffic_factor || 0.5,
-    demand_index: pricingResult?.result?.surge_multiplier || 1.0,
-    supply_index: availableDrivers.length > 0 ? Math.min(availableDrivers.length / 5, 2.0) : 0,
+    available_drivers: availableDrivers,
+    eta: etaPayload,
+    pricing: pricingPayload,
+    traffic_level: resolvedTrafficLevel,
+    demand_index: resolvedDemandIndex,
+    supply_index: resolvedSupplyIndex,
     tools_called: [
-      { tool: "driver_service", success: !driverResult?.error, latency_ms: driverResult?.latency_ms },
-      { tool: "eta_service", success: !etaResult?.error, latency_ms: etaResult?.latency_ms },
-      { tool: "pricing_service", success: !pricingResult?.error, latency_ms: pricingResult?.latency_ms },
+      { tool: "driver_service", success: toolSucceeded(driverResult), latency_ms: driverResult?.latency_ms, error: driverResult?.error || null },
+      { tool: "eta_service", success: toolSucceeded(etaResult), latency_ms: etaResult?.latency_ms, error: etaResult?.error || null },
+      { tool: "pricing_service", success: toolSucceeded(pricingResult), latency_ms: pricingResult?.latency_ms, error: pricingResult?.error || null },
     ],
     model_version: MODEL_VERSION,
     timestamp: new Date().toISOString(),
@@ -318,7 +364,7 @@ app.post("/agent/select-driver", async (req, res) => {
       latency_ms: Date.now() - start,
     });
   } catch (err) {
-    console.error(JSON.stringify({ level: "error", service: "agent-service", msg: "select_driver_error", error: err.message }));
+    log.error("select_driver_error", { error: err.message });
     res.status(500).json({ error: "Agent error", message: err.message });
   }
 });
@@ -338,7 +384,7 @@ app.post("/agent/call-tool", async (req, res) => {
 
 // GET /agent/context — Build MCP context
 app.get("/agent/context", async (req, res) => {
-  const { pickupLat, pickupLng, dropoffLat, dropoffLng, vehicleType } = req.query;
+  const { pickupLat, pickupLng, dropoffLat, dropoffLng, vehicleType, rideId, demandIndex, supplyIndex, trafficLevel } = req.query;
   if (!pickupLat || !pickupLng || !dropoffLat || !dropoffLng) {
     return res.status(400).json({ error: "pickupLat, pickupLng, dropoffLat, dropoffLng required" });
   }
@@ -346,9 +392,36 @@ app.get("/agent/context", async (req, res) => {
     pickup: { lat: parseFloat(pickupLat), lng: parseFloat(pickupLng) },
     dropoff: { lat: parseFloat(dropoffLat), lng: parseFloat(dropoffLng) },
     vehicleType: vehicleType || "CAR_4",
+    rideId: rideId || undefined,
+    demandIndex: demandIndex != null ? parseFloat(demandIndex) : undefined,
+    supplyIndex: supplyIndex != null ? parseFloat(supplyIndex) : undefined,
+    trafficLevel: trafficLevel != null ? parseFloat(trafficLevel) : undefined,
     requestId: `ctx_${Date.now()}`,
   }, SERVICE_URLS);
   res.json(context);
+});
+
+app.post("/agent/context", async (req, res) => {
+  try {
+    const { pickup, dropoff, vehicleType, ride_id, rideId, demand_index, supply_index, traffic_level } = req.body || {};
+    if (!pickup?.lat || !pickup?.lng || !dropoff?.lat || !dropoff?.lng) {
+      return res.status(400).json({ error: "pickup and dropoff with lat/lng required" });
+    }
+    const context = await buildMCPContext({
+      pickup,
+      dropoff,
+      vehicleType: vehicleType || "CAR_4",
+      rideId: ride_id || rideId || undefined,
+      demandIndex: typeof demand_index === "number" ? demand_index : undefined,
+      supplyIndex: typeof supply_index === "number" ? supply_index : undefined,
+      trafficLevel: typeof traffic_level === "number" ? traffic_level : undefined,
+      requestId: `ctx_${Date.now()}`,
+    }, SERVICE_URLS);
+    res.json(context);
+  } catch (err) {
+    log.error("agent_context_error", { error: err.message });
+    res.status(500).json({ error: "Failed to build context", message: err.message });
+  }
 });
 
 // GET /agent/decisions — View decision logs
@@ -397,24 +470,12 @@ app.get("/agent/circuit-breakers", (_req, res) => {
 });
 
 // GET /metrics (basic)
-app.get("/metrics", (_req, res) => {
-  res.set("Content-Type", "text/plain");
-  res.send(`# HELP agent_decisions_total Total agent decisions
-# TYPE agent_decisions_total counter
-agent_decisions_total ${decisionLogs.length}
-# HELP agent_tools_available Available AI tools
-# TYPE agent_tools_available gauge
-agent_tools_available ${TOOLS.length}
-`);
-});
+app.get("/metrics", metricsEndpoint);
 
 app.listen(PORT, () => {
-  console.log(JSON.stringify({
-    level: "info",
-    service: "agent-service",
-    msg: "started",
+  log.info("started", {
     port: PORT,
     tools: TOOLS,
     model_version: MODEL_VERSION,
-  }));
+  });
 });

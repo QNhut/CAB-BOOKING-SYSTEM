@@ -3,12 +3,15 @@ import cors from "cors";
 import { Pool } from "pg";
 import jwt from "jsonwebtoken";
 import { createLogger } from "../../../shared/logger.js";
+import { createHttpMetrics } from "../../../shared/http-metrics.js";
 
 const log = createLogger("user-service");
+const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("user-service");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(metricsMiddleware);
 
 const PORT = Number(process.env.PORT || 8013);
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -161,13 +164,7 @@ app.delete("/users/locations/:id", authMiddleware, async (req, res) => {
 app.get("/health", (_req, res) => res.json({ ok: true, service: "user-service" }));
 app.get("/users/health", (_req, res) => res.json({ ok: true, service: "user-service" }));
 
-app.get("/metrics", (_req, res) => {
-  res.set("Content-Type", "text/plain");
-  res.send(`# HELP user_service_up Whether user-service is running
-# TYPE user_service_up gauge
-user_service_up 1
-`);
-});
+app.get("/metrics", metricsEndpoint);
 
 // ── Start ───────────────────────────────────────────────────────────────────
 migrate()

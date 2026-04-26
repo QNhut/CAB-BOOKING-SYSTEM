@@ -1,8 +1,10 @@
 const { Kafka } = require('kafkajs');
 const crypto = require('crypto');
+const { createLogger } = require('../../shared/logger.cjs');
 
 const brokers = (process.env.KAFKA_BROKERS || 'kafka:9092').split(',');
 const topic   = process.env.KAFKA_PAYMENT_TOPIC || 'taxi.payments';
+const log = createLogger('payment-service');
 
 const kafka   = new Kafka({ clientId: 'payment-service', brokers });
 const producer = kafka.producer();
@@ -13,7 +15,7 @@ async function connect() {
   if (connected) return;
   await producer.connect();
   connected = true;
-  console.log('[payment] Kafka producer connected');
+  log.info('payment_kafka_producer_connected', { brokers, topic });
 }
 
 // Connect eagerly, retry on failure
@@ -22,7 +24,7 @@ async function connect() {
     await connect();
   } catch (e) {
     const delay = Math.min(3000 * attempt, 30000);
-    console.error(`[payment] Kafka connect error (attempt ${attempt}): ${e.message} — retry in ${delay}ms`);
+    log.error('payment_kafka_connect_error', { attempt, error: e.message, retry_delay_ms: delay });
     setTimeout(() => tryConnect(attempt + 1), delay);
   }
 })();
@@ -49,7 +51,7 @@ async function publishPaymentEvent(eventType, payload) {
     topic,
     messages: [{ key: String(payload.orderId), value: JSON.stringify(event) }],
   });
-  console.log(`[payment] Published ${eventType} orderId=${payload.orderId}`);
+  log.info('payment_event_published', { event_type: eventType, order_id: payload.orderId });
   return event;
 }
 

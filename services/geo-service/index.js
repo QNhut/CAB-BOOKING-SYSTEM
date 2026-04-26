@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import axios from "axios";
+import { createLogger } from "../../shared/logger.js";
+import { createHttpMetrics } from "../../shared/http-metrics.js";
 
 const app = express();
 app.use(cors());
@@ -8,12 +10,15 @@ app.use(express.json());
 
 const PORT = Number(process.env.PORT || 8007);
 const GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY;
+const log = createLogger("geo-service");
+const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("geo-service");
+app.use(metricsMiddleware);
 
 const DEFAULT_LANG = process.env.GEO_DEFAULT_LANG || "vi";
 const DEFAULT_COUNTRY = (process.env.GEO_DEFAULT_COUNTRY || "vn").toLowerCase();
 
 if (!GEOAPIFY_API_KEY) {
-  console.error("❌ GEOAPIFY_API_KEY missing");
+  log.error("geo_api_key_missing");
   process.exit(1);
 }
 
@@ -190,7 +195,7 @@ app.get("/geo/reverse", async (req, res) => {
       });
     } catch (geoErr) {
       // Geoapify unreachable — return coordinates as fallback (never 400)
-      console.warn("[GEO] Geoapify reverse failed, using coordinate fallback:", geoErr.message);
+      log.warn("geo_reverse_fallback", { error: geoErr.message });
       return res.json({
         name: null,
         formattedAddress: null,
@@ -203,5 +208,6 @@ app.get("/geo/reverse", async (req, res) => {
 });
 
 app.get("/health", (req, res) => res.json({ ok: true }));
+app.get("/metrics", metricsEndpoint);
 
-app.listen(PORT, () => console.log(`✅ geo-service on http://localhost:${PORT}`));
+app.listen(PORT, () => log.info("geo_service_started", { port: PORT }));

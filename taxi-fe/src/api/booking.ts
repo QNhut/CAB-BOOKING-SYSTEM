@@ -29,13 +29,14 @@ export async function createBooking(body: {
   dropoff: { lat: number; lng: number; label?: string; address?: string };
   vehicleType: string;
   paymentMethod?: string;
+  paymentStatus?: string;
   pricingSnapshot?: {
     fare: number;
     distanceM: number;
     durationS: number;
     currency?: string;
   };
-}) {
+}, options?: { idempotencyKey?: string }) {
   // Map label → address so booking-service stores the human-readable name
   const payload = {
     ...body,
@@ -50,6 +51,10 @@ export async function createBooking(body: {
       address: body.dropoff.address || body.dropoff.label || undefined,
     },
   };
-  const resp = await http.post(`${ENV.BOOKING_URL}/bookings`, payload);
+  const resp = await http.post(`${ENV.BOOKING_URL}/bookings`, payload, {
+    headers: options?.idempotencyKey
+      ? { "X-Idempotency-Key": options.idempotencyKey }
+      : undefined,
+  });
   return resp.data;
 }

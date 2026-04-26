@@ -10,7 +10,7 @@ import { getCurrentRideForUser, cancelRide } from "../../api/ride";
 import { useCurrentLocation } from "../../hooks/useCurrentLocation";
 import { geoReverse } from "../../api/geo";
 import { getProfile, updateProfile, getInternalDriverProfile } from "../../api/auth";
-import { createVnpayUrl } from "../../api/payment";
+import { createVnpayUrl, savePendingVnpayBookingDraft } from "../../api/payment";
 import { submitReview } from "../../api/review";
 import { RatingStars } from "../../components/ui/RatingStars";
 
@@ -451,6 +451,41 @@ export function UserDashboard() {
         throw new Error("Không thể tính giá. Vui lòng thử lại.");
       }
 
+      if (paymentMethod === "VNPAY") {
+        const orderId = typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `vnpay_${Date.now()}`;
+
+        savePendingVnpayBookingDraft({
+          orderId,
+          userId,
+          pickup,
+          dropoff,
+          vehicleType,
+          pricingSnapshot: {
+            fare: freshEstimate.fare,
+            distanceM: freshEstimate.distanceM,
+            durationS: freshEstimate.durationS,
+            currency: freshEstimate.currency,
+          },
+          createdAt: new Date().toISOString(),
+        });
+
+        try {
+          const vnpay = await createVnpayUrl({
+            orderId,
+            amount: Math.round(freshEstimate.fare),
+            userId: userId ?? undefined,
+          });
+          window.open(vnpay.paymentUrl, "_blank", "noopener,noreferrer");
+          alert("Chuyen sang VNPay. Booking se chi duoc tao sau khi thanh toan thanh cong.");
+        } catch (vnpErr: any) {
+          console.error("VNPay URL error:", vnpErr);
+          alert("Khong mo duoc trang VNPay. Vui long thu lai.");
+        }
+        return;
+      }
+
       const resp = await createBooking({
         userId,
         pickup,
@@ -466,21 +501,6 @@ export function UserDashboard() {
       const newBookingId = resp.bookingId || resp.id || null;
       setBookingId(newBookingId);
       setBookingCreatedAt(new Date().toISOString());
-
-      // If VNPay, open payment page in a new tab
-      if (paymentMethod === "VNPAY" && newBookingId && freshEstimate.fare) {
-        try {
-          const vnpay = await createVnpayUrl({
-            orderId: newBookingId,
-            amount: Math.round(freshEstimate.fare),
-            userId: userId ?? undefined,
-          });
-          window.open(vnpay.paymentUrl, "_blank", "noopener,noreferrer");
-        } catch (vnpErr: any) {
-          console.error("VNPay URL error:", vnpErr);
-          alert("⚠️ Đặt xe thành công nhưng không mở được trang VNPay. Bạn có thể thanh toán sau.");
-        }
-      }
     } catch (err: any) {
       alert(err?.response?.data?.error || err.message || "Tạo booking thất bại");
     } finally {
@@ -817,7 +837,7 @@ export function UserDashboard() {
                   </button>
                   <button disabled={loading === "book" || !pickup || !dropoff} onClick={doBook}
                     className={`flex-[2] py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-40 hover:opacity-90 transition shadow-lg ${paymentMethod === "VNPAY" ? "bg-blue-600" : "bg-indigo-600"}`}>
-                    {loading === "book" ? "Booking..." : paymentMethod === "VNPAY" ? "📳 Book & Pay" : "🚀 Book Now"}
+                    {loading === "book" ? "Booking..." : paymentMethod === "VNPAY" ? "📳 Pay Then Book" : "🚀 Book Now"}
                   </button>
                 </div>
 
@@ -870,3 +890,4 @@ export function UserDashboard() {
     </div>
   );
 }
+

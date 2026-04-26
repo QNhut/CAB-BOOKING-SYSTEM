@@ -3,12 +3,15 @@ import cors from "cors";
 import { createClient } from "redis";
 import jwt from "jsonwebtoken";
 import { createLogger } from "../../shared/logger.js";
+import { createHttpMetrics } from "../../shared/http-metrics.js";
 
 const log = createLogger("driver-service");
+const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("driver-service");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(metricsMiddleware);
 
 const PORT = Number(process.env.PORT || 8004);
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
@@ -17,7 +20,7 @@ const STATE_TTL_SEC = Number(process.env.STATE_TTL_SEC || 1800); // 30 phút
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-in-production-please";
 
 const redis = createClient({ url: REDIS_URL });
-redis.on("error", (e) => console.error("Redis error:", e.message));
+redis.on("error", (e) => log.error("redis_error", { error: e.message }));
 await redis.connect();
 import axios from "axios";
 const DRIVER_BASE_URL = process.env.DRIVER_BASE_URL || "http://driver-service:8004";
@@ -41,12 +44,19 @@ function authMiddleware(req, res, next) {
   try {
     // Try JWT first
     const authHeader = req.header("Authorization");
-    console.log("🔐 Auth header:", authHeader ? "Bearer ***" : "missing");
+    log.debug("driver_auth_attempt", {
+      has_authorization: Boolean(authHeader),
+      has_legacy_driver_id: Boolean(req.header("x-driver-id")),
+    });
     
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
       const decoded = jwt.verify(token, JWT_SECRET);
-      console.log("✅ JWT decoded:", { role: decoded.role, driverId: decoded.driverId, sub: decoded.sub });
+      log.debug("driver_auth_jwt_decoded", {
+        role: decoded.role,
+        driver_id: decoded.driverId || null,
+        account_id: decoded.sub || null,
+      });
       
       if (decoded.role !== "DRIVER") {
         return res.status(403).json({ error: "Forbidden: DRIVER role required" });
@@ -63,14 +73,14 @@ function authMiddleware(req, res, next) {
     // Fallback to legacy x-driver-id (for backward compatibility)
     const legacyId = req.header("x-driver-id");
     if (legacyId) {
-      console.log("📝 Using legacy x-driver-id:", legacyId);
+      log.info("driver_auth_legacy_header_used", { driver_id: legacyId });
       req.auth = { driverId: legacyId, role: "DRIVER", accountId: null };
       return next();
     }
     
     return res.status(401).json({ error: "Missing authentication (Bearer token or x-driver-id)" });
   } catch (err) {
-    console.error("❌ Auth error:", err.message);
+    log.error("driver_auth_error", { error: err.message, error_name: err.name });
     if (err.name === "JsonWebTokenError") {
       return res.status(401).json({ error: "Invalid token" });
     }
@@ -103,6 +113,7 @@ app.get("/drivers/health", async (req, res) => {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
+app.get("/metrics", metricsEndpoint);
 
 // --- GET current driver state (auto-restore on dashboard load) ---
 app.get("/drivers/me", authMiddleware, async (req, res) => {
@@ -181,7 +192,7 @@ app.post("/drivers/me/status", authMiddleware, async (req, res) => {
         assertLatLng(lat, lng);
         await redis.geoAdd(geoKey(vt), { longitude: lng, latitude: lat, member: driverId });
       } catch (err) {
-        console.warn("Invalid lat/lng provided to /drivers/me/status:", err.message);
+        log.warn("driver_status_invalid_lat_lng", { driver_id: driverId, error: err.message });
       }
     }
 
@@ -313,4 +324,4 @@ app.get("/drivers/:driverId/debug", async (req, res) => {
   res.json({ driverId, vehicleType: vt, state: st, hbTtlSec: hb });
 });
 
-app.listen(PORT, () => console.log(`Driver service listening on http://localhost:${PORT}`));
+app.listen(PORT, () => log.info("driver_service_started", { port: PORT }));

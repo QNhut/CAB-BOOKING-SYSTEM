@@ -1,9 +1,11 @@
 import { Pool } from "pg";
 import { createProducer, KAFKA_BOOKING_TOPIC } from "./kafka.js";
+import { createLogger } from "../../shared/logger.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const POLL_MS = Number(process.env.OUTBOX_POLL_MS || 1000);
 const BATCH_SIZE = Number(process.env.OUTBOX_BATCH_SIZE || 20);
+const log = createLogger("booking-outbox-worker");
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 const producer = createProducer();
@@ -70,7 +72,7 @@ async function handleEvent(evt) {
     ],
   });
 
-  console.log(`[KAFKA] sent ${message.eventType} key=${message.aggregateId}`);
+  log.info("outbox_event_sent", { event_type: message.eventType, aggregate_id: message.aggregateId });
 }
 
 async function loop() {
@@ -99,19 +101,19 @@ async function loop() {
       }
     } catch (e) {
       try { await client.query("ROLLBACK"); } catch {}
-      console.error("Outbox loop error:", e.message);
+      log.error("outbox_loop_error", { error: e.message });
     } finally {
       client.release();
     }
   }
 }
 
-console.log("✅ Outbox worker started");
+log.info("outbox_worker_started", { poll_ms: POLL_MS, batch_size: BATCH_SIZE });
 loop();
 
 // Graceful shutdown
 process.on("SIGTERM", async () => {
-  console.log("SIGTERM received, shutting down gracefully...");
+  log.info("outbox_worker_sigterm_received");
   if (producer) {
     await producer.disconnect();
   }
