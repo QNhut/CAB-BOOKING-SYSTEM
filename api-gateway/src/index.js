@@ -25,6 +25,7 @@ const FRAUD_URL   = process.env.FRAUD_URL   || "http://fraud-service:8010";
 const REVIEW_URL  = process.env.REVIEW_URL  || "http://review-service:8011";
 const AGENT_URL   = process.env.AGENT_URL   || "http://agent-service:8012";
 const USER_URL    = process.env.USER_URL    || "http://user-service:8013";
+const PROXY_TIMEOUT_MS = Number(process.env.GATEWAY_PROXY_TIMEOUT_MS || 15000);
 
 // ── Security: Helmet (XSS protection, HSTS, etc.) ──────────────────────────
 app.use(helmet({
@@ -108,6 +109,8 @@ function proxy(target) {
     target,
     changeOrigin: true,
     logLevel: "warn",
+    proxyTimeout: PROXY_TIMEOUT_MS,
+    timeout: PROXY_TIMEOUT_MS,
     on: {
       proxyReq(proxyReq, req) {
         if (req.traceId) proxyReq.setHeader("x-trace-id", req.traceId);
@@ -117,8 +120,12 @@ function proxy(target) {
       error(err, _req, res) {
         log.error("proxy_error", { upstream: target, error: err.message });
         if (res && !res.headersSent) {
-          res.statusCode = 502;
-          res.end(JSON.stringify({ error: "upstream unavailable", upstream: target }));
+          const isTimeout = err?.code === "ETIMEDOUT" || err?.code === "ECONNRESET";
+          res.statusCode = isTimeout ? 504 : 502;
+          res.end(JSON.stringify({
+            error: isTimeout ? "upstream timeout" : "upstream unavailable",
+            upstream: target,
+          }));
         }
       },
     },
@@ -199,6 +206,8 @@ app.use("/payment", createProxyMiddleware({
   target: PAYMENT_URL,
   changeOrigin: true,
   pathRewrite: { "^/payment": "" },
+  proxyTimeout: PROXY_TIMEOUT_MS,
+  timeout: PROXY_TIMEOUT_MS,
   on: {
     proxyReq(proxyReq, req) {
       if (req.traceId) proxyReq.setHeader("x-trace-id", req.traceId);
@@ -208,8 +217,12 @@ app.use("/payment", createProxyMiddleware({
     error(err, _req, res) {
       log.error("proxy_error", { upstream: PAYMENT_URL, error: err.message });
       if (res && !res.headersSent) {
-        res.statusCode = 502;
-        res.end(JSON.stringify({ error: "upstream unavailable", upstream: PAYMENT_URL }));
+        const isTimeout = err?.code === "ETIMEDOUT" || err?.code === "ECONNRESET";
+        res.statusCode = isTimeout ? 504 : 502;
+        res.end(JSON.stringify({
+          error: isTimeout ? "upstream timeout" : "upstream unavailable",
+          upstream: PAYMENT_URL,
+        }));
       }
     },
   },
