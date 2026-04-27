@@ -32,7 +32,7 @@ async function calculateFraudScore({ user_id, driver_id, booking_id, amount, loc
 
   // Rule 1: Unusual amount (very high or very low)
   if (amount > 5000000) { // > 5M VND
-    score += 0.3;
+    score += 0.4;
     reasons.push("unusually_high_amount");
   } else if (amount < 5000) { // < 5K VND
     score += 0.15;

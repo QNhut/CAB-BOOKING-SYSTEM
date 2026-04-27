@@ -4,6 +4,7 @@ import { createClient } from "redis";
 import jwt from "jsonwebtoken";
 import { createLogger } from "../../shared/logger.js";
 import { createHttpMetrics } from "../../shared/http-metrics.js";
+import { createTracingMiddleware } from "../../shared/jaeger-tracing.js";
 
 const log = createLogger("driver-service");
 const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("driver-service");
@@ -11,6 +12,7 @@ const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("driver-service
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(createTracingMiddleware("driver-service"));
 app.use(metricsMiddleware);
 
 const PORT = Number(process.env.PORT || 8004);

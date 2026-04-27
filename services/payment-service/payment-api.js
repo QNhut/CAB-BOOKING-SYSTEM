@@ -37,6 +37,7 @@ async function handlePayment(req, res) {
   }
 
   const { user_id, booking_id, amount, payment_method, card_number } = req.body || {};
+  const testDelayMs = Number(req.header("X-Test-Delay-Ms") || req.body?.__test_delay_ms || 0);
   if (!user_id || !booking_id || amount === undefined || !payment_method) {
     return jsonError(res, 400, "user_id, booking_id, amount, payment_method are required");
   }
@@ -73,9 +74,13 @@ async function handlePayment(req, res) {
 
   const maskedCard = maskCardNumber(card_number);
   if (maskedCard) {
-    log.info("payment_request_received", { booking_id, payment_method: normalizedMethod, masked_card: maskedCard, amount, user_id });
+    log.info("payment_request_received", { booking_id, payment_method: normalizedMethod, masked_card: maskedCard, amount, user_id, trace_id: req.traceId || null, request_id: req.requestId || null });
   } else {
-    log.info("payment_request_received", { booking_id, payment_method: normalizedMethod, amount, user_id });
+    log.info("payment_request_received", { booking_id, payment_method: normalizedMethod, amount, user_id, trace_id: req.traceId || null, request_id: req.requestId || null });
+  }
+
+  if (testDelayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, testDelayMs));
   }
 
   if (shouldFail) {

@@ -70,6 +70,16 @@ function generateRefreshToken() {
   return crypto.randomBytes(64).toString("hex");
 }
 
+function containsSuspiciousSqlInput(value) {
+  if (typeof value !== "string") return false;
+  return /('|%27)\s*or\s+1=1|--|;\s*drop\s+table|union\s+select/i.test(value);
+}
+
+function containsScriptTag(value) {
+  if (typeof value !== "string") return false;
+  return /<\s*script\b/i.test(value);
+}
+
 function signAccessToken(account, userId, driverId) {
   const payload = {
     iss: JWT_ISSUER,
@@ -188,6 +198,14 @@ app.post("/auth/register", async (req, res) => {
       return res.status(400).json({ error: "identifier, password, role required" });
     }
 
+    if (containsSuspiciousSqlInput(identifier)) {
+      return res.status(400).json({ error: "identifier contains invalid characters" });
+    }
+
+    if (containsScriptTag(identifier)) {
+      return res.status(400).json({ error: "identifier contains unsafe markup" });
+    }
+
     if (!["USER", "DRIVER", "ADMIN"].includes(role)) {
       return res.status(400).json({ error: "role must be USER, DRIVER, or ADMIN" });
     }
@@ -262,6 +280,14 @@ app.post("/auth/login", async (req, res) => {
 
     if (!identifier || !password) {
       return res.status(400).json({ error: "identifier and password required" });
+    }
+
+    if (containsSuspiciousSqlInput(identifier)) {
+      return res.status(400).json({ error: "identifier contains invalid characters" });
+    }
+
+    if (containsScriptTag(identifier)) {
+      return res.status(400).json({ error: "identifier contains unsafe markup" });
     }
 
     // Get account (include stored user_id/driver_id for JWT)

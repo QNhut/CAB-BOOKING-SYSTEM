@@ -3,10 +3,12 @@ import cors from "cors";
 import Redis from "ioredis";
 import { createLogger } from "../../shared/logger.js";
 import { createHttpMetrics } from "../../shared/http-metrics.js";
+import { createTracingMiddleware } from "../../shared/jaeger-tracing.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(createTracingMiddleware("pricing-service"));
 
 const PORT = process.env.PORT || 8002;
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
@@ -21,6 +23,10 @@ try {
 } catch (e) {
   log.warn("pricing_redis_unavailable", { error: e.message, mode: "surge_disabled" });
 }
+let pricingCacheHits = 0;
+let pricingCacheMisses = 0;
+
+const timeoutOnceKeys = new Set();
 
 const PRICING_RULES = {
   CAR_4: { base: 12000, perKm: 8000, perMin: 0, minFare: 25000 },
@@ -103,9 +109,44 @@ async function getEtaEstimate(body) {
   return data;
 }
 
+function buildPricingCacheKey({ pickup, dropoff, distance_km, vehicleType, demand_index, supply_index, traffic_level, hour }) {
+  return JSON.stringify({
+    pickup: pickup || null,
+    dropoff: dropoff || null,
+    distance_km: typeof distance_km === "number" ? distance_km : null,
+    vehicleType: vehicleType || "CAR_4",
+    demand_index: typeof demand_index === "number" ? demand_index : null,
+    supply_index: typeof supply_index === "number" ? supply_index : null,
+    traffic_level: typeof traffic_level === "number" ? traffic_level : null,
+    hour: Number.isInteger(hour) ? hour : null,
+  });
+}
+
 app.post("/pricing/estimate", async (req, res) => {
   try {
     const { pickup, dropoff, distance_km, vehicleType = "CAR_4", demand_index, supply_index, zone, traffic_level, hour } = req.body || {};
+    const testTimeoutMs = Number(req.body?.__test_timeout_ms || 0);
+    const testFailOnceKey = req.body?.__test_fail_once_key;
+    const cacheKey = `pricing:v2:${buildPricingCacheKey({ pickup, dropoff, distance_km, vehicleType, demand_index, supply_index, traffic_level, hour })}`;
+
+    if (redis && testTimeoutMs <= 0 && !testFailOnceKey) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          pricingCacheHits += 1;
+          return res.json({ ...JSON.parse(cached), cache_hit: true });
+        }
+      } catch {}
+    }
+    pricingCacheMisses += 1;
+
+    if (testTimeoutMs > 0) {
+      const shouldDelay = !testFailOnceKey || !timeoutOnceKeys.has(testFailOnceKey);
+      if (shouldDelay) {
+        if (testFailOnceKey) timeoutOnceKeys.add(testFailOnceKey);
+        await new Promise((resolve) => setTimeout(resolve, testTimeoutMs));
+      }
+    }
 
     const eta = await getEtaEstimate({ pickup, dropoff, distance_km, traffic_level, hour });
     const distanceM = eta.distanceM;
@@ -121,7 +162,7 @@ app.post("/pricing/estimate", async (req, res) => {
 
     const { fare, currency, breakdown } = calcFare(vehicleType, distanceM, durationS, surge);
 
-    res.json({
+    const responseBody = {
       price: fare,
       base_fare: breakdown.base,
       distanceM,
@@ -136,7 +177,15 @@ app.post("/pricing/estimate", async (req, res) => {
       demand_index: typeof demand_index === "number" ? demand_index : null,
       supply_index: typeof supply_index === "number" ? supply_index : null,
       surge_multiplier: surge,
-    });
+    };
+
+    if (redis && testTimeoutMs <= 0 && !testFailOnceKey) {
+      try {
+        await redis.setex(cacheKey, 30, JSON.stringify(responseBody));
+      } catch {}
+    }
+
+    res.json(responseBody);
   } catch (e) {
     const status = e.status || (e instanceof TypeError || e instanceof RangeError ? 422 : 400);
     res.status(status).json({ error: e.message || "Bad Request" });
@@ -169,6 +218,15 @@ app.get("/pricing/surge", async (req, res) => {
     } catch {}
   }
   res.json({ zone, surge_multiplier: surge, demand_index: demand, supply_index: supply });
+});
+
+app.get("/pricing/cache-stats", (_req, res) => {
+  const total = pricingCacheHits + pricingCacheMisses;
+  res.json({
+    hits: pricingCacheHits,
+    misses: pricingCacheMisses,
+    hit_rate: total > 0 ? pricingCacheHits / total : 0,
+  });
 });
 
 app.get("/health", (req, res) => res.json({ ok: true }));

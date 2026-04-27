@@ -3,10 +3,12 @@ import cors from "cors";
 import Redis from "ioredis";
 import { createLogger } from "../../shared/logger.js";
 import { createHttpMetrics } from "../../shared/http-metrics.js";
+import { createTracingMiddleware } from "../../shared/jaeger-tracing.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(createTracingMiddleware("eta-service"));
 
 const PORT = process.env.PORT || 8009;
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
@@ -22,6 +24,8 @@ try {
 } catch (e) {
   log.warn("eta_redis_unavailable", { error: e.message, mode: "no_cache" });
 }
+let etaCacheHits = 0;
+let etaCacheMisses = 0;
 
 function normalizeDistanceKmInput(distance_km) {
   if (distance_km === undefined) return null;
@@ -135,15 +139,53 @@ function forecastDemand({ zone = "default", hour = new Date().getHours() }) {
   };
 }
 
+function buildEtaCacheKey({ distance_km, pickup, dropoff, traffic_level, hour, test_force_haversine }) {
+  if (typeof distance_km === "number") {
+    return `eta:v2:distance:${distance_km}:${traffic_level ?? "auto"}:${hour ?? "auto"}`;
+  }
+  return [
+    "eta:v2:coords",
+    pickup?.lat ?? "x",
+    pickup?.lng ?? "x",
+    dropoff?.lat ?? "x",
+    dropoff?.lng ?? "x",
+    traffic_level ?? "auto",
+    hour ?? "auto",
+    test_force_haversine ? "haversine" : "default",
+  ].join(":");
+}
+
 app.post("/eta/predict", async (req, res) => {
   const start = Date.now();
   try {
-    const { distance_km, traffic_level, pickup, dropoff, hour } = req.body || {};
+    const { distance_km, traffic_level, pickup, dropoff, hour, __test_force_haversine } = req.body || {};
     const normalizedDistanceKm = normalizeDistanceKmInput(distance_km);
 
     if (normalizedDistanceKm == null && (!pickup || !dropoff)) {
       return res.status(400).json({ error: "distance_km or pickup/dropoff coordinates required" });
     }
+
+    const cacheKey = buildEtaCacheKey({
+      distance_km: normalizedDistanceKm,
+      pickup,
+      dropoff,
+      traffic_level,
+      hour,
+      test_force_haversine: Boolean(__test_force_haversine),
+    });
+
+    if (redis) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          etaCacheHits += 1;
+          const parsed = JSON.parse(cached);
+          recordForDrift(parsed.distance_km, parsed.traffic_level);
+          return res.json({ ...parsed, cache_hit: true, latency_ms: Date.now() - start });
+        }
+      } catch {}
+    }
+    etaCacheMisses += 1;
 
     let distanceM;
     let baselineDurationS = null;
@@ -156,6 +198,9 @@ app.post("/eta/predict", async (req, res) => {
       assertLatLng(pickup, "pickup");
       assertLatLng(dropoff, "dropoff");
       try {
+        if (__test_force_haversine) {
+          throw new Error("Forced OSRM failure for fallback test");
+        }
         const route = await getRouteOSRM(pickup, dropoff);
         distanceM = route.distanceM;
         baselineDurationS = route.durationS;
@@ -183,13 +228,13 @@ app.post("/eta/predict", async (req, res) => {
     const latencyMs = Date.now() - start;
 
     if (redis) {
-      const cacheKey = `eta:${Math.round(distanceM / 100)}:${Math.round(resolvedTrafficLevel * 10)}:${routeSource}`;
       await redis.setex(cacheKey, 30, JSON.stringify({
-        eta: result.eta_minutes,
-        eta_seconds: etaSeconds,
-        confidence: result.confidence,
-        distanceM,
-        distance_km: resolvedDistanceKm,
+          eta: result.eta_minutes,
+          eta_seconds: etaSeconds,
+          durationS: etaSeconds,
+          confidence: result.confidence,
+          distanceM,
+          distance_km: resolvedDistanceKm,
         routeSource,
         traffic_level: resolvedTrafficLevel,
       })).catch(() => {});
@@ -285,10 +330,21 @@ app.get("/metrics", metricsEndpoint);
 
 app.get("/eta/metrics", (req, res) => {
   const drift = detectDrift();
+  const totalCache = etaCacheHits + etaCacheMisses;
+  const hitRate = totalCache > 0 ? etaCacheHits / totalCache : 0;
   res.set("Content-Type", "text/plain");
   res.send(`# HELP eta_predictions_total Total ETA predictions
 # TYPE eta_predictions_total counter
 eta_predictions_total ${driftWindow.length}
+# HELP eta_cache_hits_total Total ETA cache hits
+# TYPE eta_cache_hits_total counter
+eta_cache_hits_total ${etaCacheHits}
+# HELP eta_cache_misses_total Total ETA cache misses
+# TYPE eta_cache_misses_total counter
+eta_cache_misses_total ${etaCacheMisses}
+# HELP eta_cache_hit_rate ETA cache hit rate
+# TYPE eta_cache_hit_rate gauge
+eta_cache_hit_rate ${hitRate}
 # HELP eta_drift_z_score Current drift z-score
 # TYPE eta_drift_z_score gauge
 eta_drift_z_score ${drift.z_score || 0}

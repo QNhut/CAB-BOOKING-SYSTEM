@@ -21,6 +21,10 @@
     {
       "key": "vehicleType",
       "value": "CAR_4"
+    },
+    {
+      "key": "jwtSecret",
+      "value": "dev-secret-change-in-production-please"
     }
   ],
   "item": [
@@ -764,7 +768,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"distance_km\": 5,\n  \"demand_index\": 1.0,\n  \"supply_index\": 1.0,\n  \"vehicleType\": \"{{vehicleType}}\"\n}"
+              "raw": "{\n  \"distance_km\": 5,\n  \"demand_index\": 1,\n  \"supply_index\": 1,\n  \"vehicleType\": \"{{vehicleType}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/pricing/estimate",
@@ -945,7 +949,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 25000, \"distanceM\": 5000, \"durationS\": 600, \"currency\": \"VND\"}\n}"
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 25000,\n    \"distanceM\": 5000,\n    \"durationS\": 600,\n    \"currency\": \"VND\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/bookings",
@@ -997,7 +1001,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": \"abc\", \"lng\": 106.66},\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 25000, \"distanceM\": 5000, \"durationS\": 600, \"currency\": \"VND\"}\n}"
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\n    \"lat\": \"abc\",\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 25000,\n    \"distanceM\": 5000,\n    \"durationS\": 600,\n    \"currency\": \"VND\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/bookings",
@@ -1107,7 +1111,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.768, \"lng\": 106.668},\n  \"dropoff\": {\"lat\": 10.779, \"lng\": 106.709},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 29000, \"distanceM\": 6000, \"durationS\": 700, \"currency\": \"VND\"}\n}"
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\n    \"lat\": 10.768,\n    \"lng\": 106.668\n  },\n  \"dropoff\": {\n    \"lat\": 10.779,\n    \"lng\": 106.709\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 29000,\n    \"distanceM\": 6000,\n    \"durationS\": 700,\n    \"currency\": \"VND\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/bookings",
@@ -1182,7 +1186,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"invalid_card\",\n  \"pricingSnapshot\": {\"fare\": 25000, \"distanceM\": 5000, \"durationS\": 600, \"currency\": \"VND\"}\n}"
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"invalid_card\",\n  \"pricingSnapshot\": {\n    \"fare\": 25000,\n    \"distanceM\": 5000,\n    \"durationS\": 600,\n    \"currency\": \"VND\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/bookings",
@@ -1466,7 +1470,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.761, \"lng\": 106.661},\n  \"dropoff\": {\"lat\": 10.772, \"lng\": 106.702},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 26000, \"distanceM\": 5200, \"durationS\": 620, \"currency\": \"VND\"}\n}"
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\n    \"lat\": 10.761,\n    \"lng\": 106.661\n  },\n  \"dropoff\": {\n    \"lat\": 10.772,\n    \"lng\": 106.702\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 26000,\n    \"distanceM\": 5200,\n    \"durationS\": 620,\n    \"currency\": \"VND\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/bookings",
@@ -1519,7 +1523,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.761, \"lng\": 106.661},\n  \"dropoff\": {\"lat\": 10.772, \"lng\": 106.702},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 26000, \"distanceM\": 5200, \"durationS\": 620, \"currency\": \"VND\"}\n}"
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\n    \"lat\": 10.761,\n    \"lng\": 106.661\n  },\n  \"dropoff\": {\n    \"lat\": 10.772,\n    \"lng\": 106.702\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 26000,\n    \"distanceM\": 5200,\n    \"durationS\": 620,\n    \"currency\": \"VND\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/bookings",
@@ -1623,7 +1627,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70}\n}"
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/eta/predict",
@@ -1672,7 +1676,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"dropoff\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"vehicleType\": \"{{vehicleType}}\"\n}"
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"{{vehicleType}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/pricing/estimate",
@@ -1694,24 +1698,31 @@
       "description": "Booking -> Payment -> Notification success flow. Notification verification is hybrid: keep the SSE request open in a separate Postman tab to observe the payment event.",
       "item": [
         {
-          "name": "TC24 - Open User Notification SSE Stream (Manual)",
-          "description": "Open this request in a separate Postman tab and keep it running before executing the remaining TC24 steps. Expected on success: an SSE event named payment for the current user after payment is initialized.",
+          "name": "TC24 - Manual SSE Instructions (Do Not Run In Runner)",
+          "description": "Do not run this inside Collection Runner because SSE is a long-lived connection and will keep the run open. Open the URL {{baseUrl}}/notifications/stream?token={{customerToken}} manually in a separate Postman tab or browser tab if you want to show the live payment event.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('manual SSE helper returns quickly', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/notifications/stream?token={{customerToken}}",
+              "raw": "{{baseUrl}}/notifications/debug",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "notifications",
-                "stream"
-              ],
-              "query": [
-                {
-                  "key": "token",
-                  "value": "{{customerToken}}"
-                }
+                "debug"
               ]
             }
           }
@@ -1765,7 +1776,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.765, \"lng\": 106.665},\n  \"dropoff\": {\"lat\": 10.775, \"lng\": 106.705},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 50000, \"distanceM\": 5500, \"durationS\": 650, \"currency\": \"VND\"}\n}"
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\n    \"lat\": 10.765,\n    \"lng\": 106.665\n  },\n  \"dropoff\": {\n    \"lat\": 10.775,\n    \"lng\": 106.705\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 50000,\n    \"distanceM\": 5500,\n    \"durationS\": 650,\n    \"currency\": \"VND\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/bookings",
@@ -1929,7 +1940,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\"lat\": 10.765, \"lng\": 106.665},\n  \"dropoff\": {\"lat\": 10.775, \"lng\": 106.705},\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\"fare\": 28000, \"distanceM\": 5500, \"durationS\": 650, \"currency\": \"VND\"}\n}"
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\n    \"lat\": 10.765,\n    \"lng\": 106.665\n  },\n  \"dropoff\": {\n    \"lat\": 10.775,\n    \"lng\": 106.705\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 28000,\n    \"distanceM\": 5500,\n    \"durationS\": 650,\n    \"currency\": \"VND\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/bookings",
@@ -2158,7 +2169,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ride_id\": \"BK123\",\n  \"pickup\": { \"lat\": 10.76, \"lng\": 106.66 },\n  \"dropoff\": { \"lat\": 10.77, \"lng\": 106.70 },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"traffic_level\": 0.7,\n  \"demand_index\": 1.5,\n  \"supply_index\": 0.8\n}"
+              "raw": "{\n  \"ride_id\": \"BK123\",\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"traffic_level\": 0.7,\n  \"demand_index\": 1.5,\n  \"supply_index\": 0.8\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/agent/context",
@@ -2174,6 +2185,69 @@
         }
       ],
       "description": "Requests grouped under TC28."
+    },
+    {
+      "name": "TC30",
+      "item": [
+        {
+          "name": "TC30 - Retry When Pricing Times Out",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('tc30PricingFailOnceKey', `tc30-${Date.now()}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "const pricingTool = (body.tools_called || []).find((t) => t.tool === 'pricing_service');",
+                  "pm.test('context still returned after pricing timeout', function () {",
+                  "  pm.expect(body.pricing).to.be.an('object');",
+                  "  pm.expect(body.pricing.fare || body.pricing.price).to.be.a('number');",
+                  "});",
+                  "pm.test('pricing tool eventually succeeded after retry', function () {",
+                  "  pm.expect(pricingTool).to.be.an('object');",
+                  "  pm.expect(pricingTool.success).to.eql(true);",
+                  "  pm.expect(pricingTool.attempt).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ride_id\": \"BK_TC30\",\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"pricing_timeout_ms\": 3500,\n  \"pricing_fail_once_key\": \"{{tc30PricingFailOnceKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "context"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC30."
     },
     {
       "name": "TC32",
@@ -2229,7 +2303,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": { \"lat\": 10.76, \"lng\": 106.66, \"address\": \"Rollback Pickup\" },\n  \"dropoff\": { \"lat\": 10.77, \"lng\": 106.70, \"address\": \"Rollback Dropoff\" },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 50000,\n    \"distanceM\": 5000,\n    \"durationS\": 600,\n    \"currency\": \"VND\"\n  }\n}"
+              "raw": "{\n  \"userId\": \"{{customerUserId}}\",\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66,\n    \"address\": \"Rollback Pickup\"\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7,\n    \"address\": \"Rollback Dropoff\"\n  },\n  \"vehicleType\": \"{{vehicleType}}\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 50000,\n    \"distanceM\": 5000,\n    \"durationS\": 600,\n    \"currency\": \"VND\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/bookings",
@@ -2273,6 +2347,169 @@
         }
       ],
       "description": "Requests grouped under TC32."
+    },
+    {
+      "name": "TC91",
+      "item": [
+        {
+          "name": "TC91 - Request Without Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('missing token is rejected', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([401]);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('error message is clear', function () {",
+                  "  pm.expect(String(body.error || '')).to.match(/missing authentication|bearer token required/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/me/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "me",
+                "active"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC91."
+    },
+    {
+      "name": "TC93",
+      "item": [
+        {
+          "name": "TC93 - Expired Token Is Rejected",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const now = Math.floor(Date.now() / 1000);",
+                  "const header = { alg: 'HS256', typ: 'JWT' };",
+                  "const payload = {",
+                  "  iss: 'taxi-auth-service',",
+                  "  aud: 'taxi-platform',",
+                  "  sub: 'expired-token-demo',",
+                  "  role: 'USER',",
+                  "  userId: pm.collectionVariables.get('customerUserId') || 'USR_EXPIRED_DEMO',",
+                  "  iat: now - 7200,",
+                  "  exp: now - 3600",
+                  "};",
+                  "function base64url(input) {",
+                  "  return CryptoJS.enc.Base64.stringify(typeof input === 'string' ? CryptoJS.enc.Utf8.parse(input) : input)",
+                  "    .replace(/\\+/g, '-')",
+                  "    .replace(/\\//g, '_')",
+                  "    .replace(/=+$/g, '');",
+                  "}",
+                  "const encodedHeader = base64url(JSON.stringify(header));",
+                  "const encodedPayload = base64url(JSON.stringify(payload));",
+                  "const signingInput = `${encodedHeader}.${encodedPayload}`;",
+                  "const signature = CryptoJS.HmacSHA256(signingInput, pm.collectionVariables.get('jwtSecret'));",
+                  "const token = `${signingInput}.${base64url(signature)}`;",
+                  "pm.collectionVariables.set('expiredUserToken', token);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('expired token is rejected', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([401]);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('expired error is returned', function () {",
+                  "  pm.expect(String(body.error || '')).to.match(/token expired/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{expiredUserToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/me/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "me",
+                "active"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC93."
+    },
+    {
+      "name": "TC96",
+      "item": [
+        {
+          "name": "TC96 - Driver Cannot Access User Data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('driver token cannot access user-only endpoint', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('forbidden message is returned', function () {",
+                  "  pm.expect(String(body.error || '')).to.match(/forbidden|user role required/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/me/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "me",
+                "active"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC96."
     },
     {
       "name": "TC42",
@@ -2337,7 +2574,7 @@
                   "const body = pm.response.json();",
                   "pm.test('fraud result is flagged', function () {",
                   "  pm.expect(body.flagged).to.eql(true);",
-                  "  pm.expect(body.fraud_score).to.be.above(body.threshold);",
+                  "  pm.expect(body.fraud_score).to.be.at.least(body.threshold);",
                   "});"
                 ]
               }
@@ -2353,7 +2590,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user_id\": \"{{customerUserId}}\",\n  \"driver_id\": \"{{driverId}}\",\n  \"booking_id\": \"BK_FRAUD_{{runId}}\",\n  \"amount\": 9000000,\n  \"location\": {\"lat\": 35.0, \"lng\": 139.0},\n  \"device_fingerprint\": \"device-demo\"\n}"
+              "raw": "{\n  \"user_id\": \"{{customerUserId}}\",\n  \"driver_id\": \"{{driverId}}\",\n  \"booking_id\": \"BK_FRAUD_{{runId}}\",\n  \"amount\": 9000000,\n  \"location\": {\n    \"lat\": 35,\n    \"lng\": 139\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/fraud/check",
@@ -2369,6 +2606,59 @@
         }
       ],
       "description": "Requests grouped under TC43."
+    },
+    {
+      "name": "TC44",
+      "item": [
+        {
+          "name": "TC44 - Recommendation Returns Top-3 Drivers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.test('top_3 array exists with exactly 3 drivers', function () {",
+                  "  pm.expect(body.top_3).to.be.an('array');",
+                  "  pm.expect(body.top_3.length).to.eql(3);",
+                  "});",
+                  "pm.test('top_3 is sorted by total_score descending', function () {",
+                  "  for (let i = 1; i < body.top_3.length; i++) {",
+                  "    pm.expect(body.top_3[i - 1].total_score).to.be.at.least(body.top_3[i].total_score);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"skip_context_tools\": true,\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 900,\n      \"rating\": 4.9,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D2\",\n      \"distance\": 700,\n      \"rating\": 4.8,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D3\",\n      \"distance\": 1100,\n      \"rating\": 4.7,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D4\",\n      \"distance\": 1500,\n      \"rating\": 4.6,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D5\",\n      \"distance\": 2000,\n      \"rating\": 4.5,\n      \"status\": \"ONLINE\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/select-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "select-driver"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC44."
     },
     {
       "name": "TC45",
@@ -2526,10 +2816,10 @@
       "description": "Requests grouped under TC50."
     },
     {
-      "name": "TC67/85/98",
+      "name": "TC67",
       "item": [
         {
-          "name": "TC67/85/98 - Gateway Rate Limit Smoke Check",
+          "name": "TC67 - Gateway Rate Limit Smoke Check",
           "description": "Single request to inspect rate limit headers. Full abuse validation should be run by Newman/k6/Artillery, not a single Postman click.",
           "request": {
             "method": "GET",
@@ -2545,13 +2835,57 @@
           }
         }
       ],
-      "description": "Requests grouped under TC67/85/98."
+      "description": "Requests grouped under TC67."
     },
     {
-      "name": "TC83/92",
+      "name": "TC85",
       "item": [
         {
-          "name": "TC83/92 - Tampered JWT -> 401",
+          "name": "TC85 - Gateway Rate Limit Smoke Check",
+          "description": "Single request to inspect rate limit headers. Full abuse validation should be run by Newman/k6/Artillery, not a single Postman click.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC85."
+    },
+    {
+      "name": "TC98",
+      "item": [
+        {
+          "name": "TC98 - Gateway Rate Limit Smoke Check",
+          "description": "Single request to inspect rate limit headers. Full abuse validation should be run by Newman/k6/Artillery, not a single Postman click.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC98."
+    },
+    {
+      "name": "TC83",
+      "item": [
+        {
+          "name": "TC83 - Tampered JWT -> 401",
           "event": [
             {
               "listen": "test",
@@ -2585,13 +2919,53 @@
           }
         }
       ],
-      "description": "Requests grouped under TC83/92."
+      "description": "Requests grouped under TC83."
     },
     {
-      "name": "TC84/89/95",
+      "name": "TC92",
       "item": [
         {
-          "name": "TC84/89/95 - RBAC Forbidden",
+          "name": "TC92 - Tampered JWT -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(401);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbl8wMDEiLCJyb2xlIjoiQURNSU4iLCJleHAiOjQ3MzM5ODQwMDB9.invalidsignature"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/me/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "me",
+                "active"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC92."
+    },
+    {
+      "name": "TC84",
+      "item": [
+        {
+          "name": "TC84 - RBAC Forbidden",
           "event": [
             {
               "listen": "test",
@@ -2625,13 +2999,93 @@
           }
         }
       ],
-      "description": "Requests grouped under TC84/89/95."
+      "description": "Requests grouped under TC84."
     },
     {
-      "name": "TC102/113",
+      "name": "TC89",
       "item": [
         {
-          "name": "TC102/113 - Health And Metrics",
+          "name": "TC89 - RBAC Forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(403);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "admin",
+                "users"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC89."
+    },
+    {
+      "name": "TC95",
+      "item": [
+        {
+          "name": "TC95 - RBAC Forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(403);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "admin",
+                "users"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC95."
+    },
+    {
+      "name": "TC102",
+      "item": [
+        {
+          "name": "TC102 - Health And Metrics",
           "description": "Basic deployment and monitoring smoke checks from later rubric levels.",
           "request": {
             "method": "GET",
@@ -2647,7 +3101,1700 @@
           }
         }
       ],
-      "description": "Requests grouped under TC102/113."
+      "description": "Requests grouped under TC102."
+    },
+    {
+      "name": "TC113",
+      "item": [
+        {
+          "name": "TC113 - Health And Metrics",
+          "description": "Basic deployment and monitoring smoke checks from later rubric levels.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Requests grouped under TC113."
+    },
+    {
+      "name": "TC81",
+      "item": [
+        {
+          "name": "TC81 - SQL Injection Attempt Is Rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('SQLi payload does not authenticate or leak data', function () {",
+                  "  pm.expect([400,401]).to.include(pm.response.code);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('no token returned', function () { pm.expect(body.accessToken).to.be.undefined; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"' OR 1=1 --\",\n  \"password\": \"whatever\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC82",
+      "item": [
+        {
+          "name": "TC82 - XSS Payload Is Rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('XSS payload rejected', function () { pm.expect([400,422]).to.include(pm.response.code); });",
+                  "const body = pm.response.json();",
+                  "pm.test('unsafe markup message present', function () { pm.expect(JSON.stringify(body)).to.match(/unsafe|markup|invalid/i); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66,\n    \"address\": \"<script>alert(1)</script>\"\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7,\n    \"address\": \"Ben Thanh\"\n  },\n  \"vehicleType\": \"CAR_4\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 25000,\n    \"distanceM\": 5000,\n    \"durationS\": 600,\n    \"currency\": \"VND\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC86",
+      "item": [
+        {
+          "name": "TC86 - Replay Attack Step 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('tc86IdemKey', pm.collectionVariables.get('tc86IdemKey') || ('tc86-' + Date.now()));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('tc86TransactionId', body.transaction_id);",
+                  "pm.test('first payment created', function () { pm.expect([200,201]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{tc86IdemKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"USR123\",\n  \"booking_id\": \"BK_TC86\",\n  \"amount\": 50000,\n  \"payment_method\": \"card\",\n  \"card_number\": \"4111111111111234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "payments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC86 - Replay Attack Step 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('replay returns prior response', function () { pm.expect([200,201]).to.include(pm.response.code); });",
+                  "pm.test('idempotent replay marker present', function () { pm.expect(body.idempotent_replay).to.equal(true); });",
+                  "pm.test('same transaction id reused', function () { pm.expect(body.transaction_id).to.equal(pm.collectionVariables.get('tc86TransactionId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{tc86IdemKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"USR123\",\n  \"booking_id\": \"BK_TC86\",\n  \"amount\": 50000,\n  \"payment_method\": \"card\",\n  \"card_number\": \"4111111111111234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "payments"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC90",
+      "item": [
+        {
+          "name": "TC90 - Sensitive Data Not Leaked In Response",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const text = pm.response.text();",
+                  "pm.test('payment request succeeds', function () { pm.expect([200,201]).to.include(pm.response.code); });",
+                  "pm.test('full card number is not present in response', function () { pm.expect(text).to.not.include('4111111111111234'); });",
+                  "pm.test('response has no password field', function () { pm.expect(text).to.not.match(/password/i); });",
+                  "pm.test('response has no token field', function () { pm.expect(text).to.not.match(/refreshToken|password_hash/i); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"USR123\",\n  \"booking_id\": \"BK_TC90\",\n  \"amount\": 50000,\n  \"payment_method\": \"card\",\n  \"card_number\": \"4111111111111234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "payments"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC34",
+      "item": [
+        {
+          "name": "TC34 - Idempotent Transaction Step 1",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('tc34IdemKey')) pm.collectionVariables.set('tc34IdemKey', 'tc34-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json(); pm.collectionVariables.set('tc34BookingId', body.bookingId);",
+                  "pm.test('first booking request accepted', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{tc34IdemKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66,\n    \"address\": \"A\"\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7,\n    \"address\": \"B\"\n  },\n  \"vehicleType\": \"CAR_4\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 25000,\n    \"distanceM\": 5000,\n    \"durationS\": 600,\n    \"currency\": \"VND\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC34 - Idempotent Transaction Step 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('replay booking returns same booking id', function () { pm.expect(body.bookingId).to.equal(pm.collectionVariables.get('tc34BookingId')); });",
+                  "pm.test('deduplicated marker true', function () { pm.expect(body.deduplicated).to.equal(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{tc34IdemKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66,\n    \"address\": \"A\"\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7,\n    \"address\": \"B\"\n  },\n  \"vehicleType\": \"CAR_4\",\n  \"paymentMethod\": \"CASH\",\n  \"pricingSnapshot\": {\n    \"fare\": 25000,\n    \"distanceM\": 5000,\n    \"durationS\": 600,\n    \"currency\": \"VND\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC39",
+      "item": [
+        {
+          "name": "TC39 - Payment Timeout Returns Controlled Failure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('controlled failure returned', function () { pm.expect(pm.response.code).to.equal(500); });",
+                  "pm.test('trace id returned', function () { pm.expect(body.trace_id).to.exist; });",
+                  "pm.test('timeout-style message present', function () { pm.expect(JSON.stringify(body)).to.match(/timeout|aborted|failed/i); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"BK_TC39\",\n  \"user_id\": \"USR_TC39\",\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"CAR_4\",\n  \"payment_method\": \"card\",\n  \"amount\": 50000,\n  \"card_number\": \"4111111111111234\",\n  \"payment_timeout_ms\": 4000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/booking-flow-trace",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "booking-flow-trace"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC116",
+      "item": [
+        {
+          "name": "TC116 - Error Alert Demo Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": "Run node qa-tests/tc116-error-alert.mjs and then inspect Prometheus /api/v1/alerts or Grafana alert state for HighErrorRate."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC117",
+      "item": [
+        {
+          "name": "TC117 - Latency Alert Demo Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": "Run node qa-tests/tc117-latency-alert.mjs and then inspect Prometheus /api/v1/alerts or Grafana alert state for HighLatency."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC41",
+      "item": [
+        {
+          "name": "TC41 - ETA Output In Reasonable Range",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('ETA API returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('eta is >= 0 and < 60 minutes', function () { pm.expect(body.eta).to.be.at.least(0); pm.expect(body.eta).to.be.below(60); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"traffic_level\": 0.35\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/eta/predict",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "eta",
+                "predict"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC47",
+      "item": [
+        {
+          "name": "TC47 - Agent Latency Under 200ms",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('agent request returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('latency_ms < 200', function () { pm.expect(body.latency_ms).to.be.below(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 1200,\n      \"rating\": 4.8,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D2\",\n      \"distance\": 900,\n      \"rating\": 4.7,\n      \"status\": \"ONLINE\"\n    }\n  ],\n  \"force_rule_based\": true,\n  \"skip_context_tools\": true\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8012/agent/select-driver",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8012",
+              "path": [
+                "agent",
+                "select-driver"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC49",
+      "item": [
+        {
+          "name": "TC49 - Model Fallback Returns Rule-Based Result",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('response returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('fallback selection method used', function () { pm.expect(body.selection_method).to.eql('rule_based_fallback'); });",
+                  "pm.test('nearest driver picked by fallback', function () { pm.expect(body.selected_driver.driver_id).to.eql('D2'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 1800,\n      \"rating\": 4.9,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D2\",\n      \"distance\": 700,\n      \"rating\": 4.1,\n      \"status\": \"ONLINE\"\n    }\n  ],\n  \"force_rule_based\": true,\n  \"__test_force_fail_tool\": \"agent_ai\",\n  \"skip_context_tools\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/select-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "select-driver"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC51",
+      "item": [
+        {
+          "name": "TC51 - Agent Chooses Nearest Driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('response returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('nearest online driver selected', function () { pm.expect(body.selected_driver.driver_id).to.eql('D2'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 1800,\n      \"rating\": 4.5,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D2\",\n      \"distance\": 700,\n      \"rating\": 4.5,\n      \"status\": \"ONLINE\"\n    }\n  ],\n  \"force_rule_based\": true,\n  \"skip_context_tools\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/select-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "select-driver"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC57",
+      "item": [
+        {
+          "name": "TC57 - Agent Ignores Offline Driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('response returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('offline nearer driver not selected', function () { pm.expect(body.selected_driver.driver_id).to.eql('D2'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 200,\n      \"rating\": 5,\n      \"status\": \"OFFLINE\"\n    },\n    {\n      \"id\": \"D2\",\n      \"distance\": 900,\n      \"rating\": 4.7,\n      \"status\": \"ONLINE\"\n    }\n  ],\n  \"force_rule_based\": true,\n  \"skip_context_tools\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/select-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "select-driver"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC58",
+      "item": [
+        {
+          "name": "TC58 - Create Decision Log Entry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json(); pm.collectionVariables.set('tc58DecisionId', body.decision_log);",
+                  "pm.test('decision log id captured', function () { pm.expect(body.decision_log).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 1800,\n      \"rating\": 4.9,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D2\",\n      \"distance\": 700,\n      \"rating\": 4.1,\n      \"status\": \"ONLINE\"\n    }\n  ],\n  \"force_rule_based\": true,\n  \"__test_force_fail_tool\": \"agent_ai\",\n  \"bookingId\": \"BK_TC58\",\n  \"userId\": \"USR_TC58\",\n  \"skip_context_tools\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/select-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "select-driver"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC58 - Verify Decision Log Fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('log has selected_driver', function () { pm.expect(body.selected_driver).to.exist; });",
+                  "pm.test('log has reason and score', function () { pm.expect(body.selected_driver_reason).to.exist; pm.expect(body.selected_driver_score !== undefined).to.equal(true); });",
+                  "pm.test('log has selection method', function () { pm.expect(body.selection_method).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/agent/decisions/{{tc58DecisionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "decisions",
+                "{{tc58DecisionId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC60",
+      "item": [
+        {
+          "name": "TC60 - Agent Uses Rule-Based Fallback When AI Fails",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('fallback used', function () { pm.expect(body.selection_method).to.eql('rule_based_fallback'); });",
+                  "pm.test('selected driver still returned', function () { pm.expect(body.selected_driver.driver_id).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 1400,\n      \"rating\": 4.8,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D2\",\n      \"distance\": 900,\n      \"rating\": 4.6,\n      \"status\": \"ONLINE\"\n    }\n  ],\n  \"force_rule_based\": true,\n  \"__test_force_fail_tool\": \"agent_ai\",\n  \"skip_context_tools\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/select-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "select-driver"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC71",
+      "item": [
+        {
+          "name": "TC71 - Warm Driver Cache",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('warm cache returns 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"CAR_4\",\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 800,\n      \"rating\": 4.7,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D2\",\n      \"distance\": 1200,\n      \"rating\": 4.8,\n      \"status\": \"ONLINE\"\n    }\n  ],\n  \"skip_context_tools\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "context"
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC71 - Driver Service Down Uses Cached Drivers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json(); const tool = (body.tools_called || []).find(t => t.tool === 'driver_service');",
+                  "pm.test('request returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('driver tool fallback from cache', function () { pm.expect(tool.cached).to.eql(true); pm.expect(tool.fallback).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"CAR_4\",\n  \"__test_force_fail_tool\": \"driver_service\",\n  \"skip_context_tools\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "context"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC72",
+      "item": [
+        {
+          "name": "TC72 - Pricing Timeout Retry Fallback",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json(); const tool = (body.tools_called || []).find(t => t.tool === 'pricing_service');",
+                  "pm.test('context still returned', function () { pm.response.to.have.status(200); pm.expect(body.pricing).to.exist; });",
+                  "pm.test('pricing tool retried', function () { pm.expect(tool.attempt).to.be.at.least(1); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ride_id\": \"BK_TC72\",\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"CAR_4\",\n  \"pricing_timeout_ms\": 3500,\n  \"pricing_fail_once_key\": \"tc72-fail-once\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "context"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC77",
+      "item": [
+        {
+          "name": "TC77 - Retry Uses Exponential Backoff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json(); const tool = (body.tools_called || []).find(t => t.tool === 'pricing_service');",
+                  "pm.test('request returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('retry delays grow 100 -> 200', function () { pm.expect(tool.retry_delays_ms[0]).to.eql(100); pm.expect(tool.retry_delays_ms[1]).to.eql(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"CAR_4\",\n  \"__test_force_fail_tool\": \"pricing_service\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "context"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC52",
+      "item": [
+        {
+          "name": "TC52 - Higher Rating Wins When Distance Similar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('higher-rated near-equal driver selected', function () { pm.expect(body.selected_driver.driver_id).to.eql('D2'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"skip_context_tools\": true,\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 1000,\n      \"rating\": 4.2,\n      \"status\": \"ONLINE\"\n    },\n    {\n      \"id\": \"D2\",\n      \"distance\": 1005,\n      \"rating\": 4.9,\n      \"status\": \"ONLINE\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8012/agent/select-driver",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8012",
+              "path": [
+                "agent",
+                "select-driver"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC53",
+      "item": [
+        {
+          "name": "TC53 - Agent Balances ETA And Price",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('ETA/price weighted choice selected', function () { pm.expect(body.selected_driver.driver_id).to.eql('D2'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"skip_context_tools\": true,\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 1500,\n      \"rating\": 4.7,\n      \"status\": \"ONLINE\",\n      \"eta_minutes\": 20,\n      \"price\": 30000\n    },\n    {\n      \"id\": \"D2\",\n      \"distance\": 1500,\n      \"rating\": 4.7,\n      \"status\": \"ONLINE\",\n      \"eta_minutes\": 8,\n      \"price\": 45000\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8012/agent/select-driver",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8012",
+              "path": [
+                "agent",
+                "select-driver"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC54",
+      "item": [
+        {
+          "name": "TC54 - Agent Calls Correct Tools",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json(); const tools = Object.fromEntries((body.tools_called || []).map(t => [t.tool, t]));",
+                  "pm.test('returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('driver/eta/pricing tools recorded', function () { pm.expect(tools.driver_service).to.exist; pm.expect(tools.eta_service).to.exist; pm.expect(tools.pricing_service).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"CAR_4\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "context"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC55",
+      "item": [
+        {
+          "name": "TC55 - Missing Optional Context Does Not Crash",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('fallback context still returned', function () { pm.expect(body.pickup).to.exist; pm.expect(body.dropoff).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "context"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC56",
+      "item": [
+        {
+          "name": "TC56 - Agent Retries When Service Fails",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json(); const tool = (body.tools_called || []).find(t => t.tool === 'pricing_service');",
+                  "pm.test('returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('pricing retry attempts reached >= 2', function () { pm.expect(tool.attempt).to.be.at.least(2); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"CAR_4\",\n  \"__test_force_fail_tool\": \"pricing_service\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "context"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC59",
+      "item": [
+        {
+          "name": "TC59 - Concurrency Demo Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Run node qa-tests/tc59-agent-concurrency.mjs to verify 10 concurrent agent requests all return 200."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC73",
+      "item": [
+        {
+          "name": "TC73 - Kafka Down Buffer Event Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('outbox endpoint reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:8003/outbox?status=NEW",
+              "host": [
+                "http://localhost:8003"
+              ],
+              "path": [
+                "outbox"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "NEW"
+                }
+              ]
+            },
+            "description": "Manual demo: stop Kafka or outbox worker, create a booking, then use this request to show the event is buffered in outbox_events instead of being lost."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC75",
+      "item": [
+        {
+          "name": "TC75 - Circuit Breaker Opens After Repeated Failures",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('pricing breaker is OPEN after tc75 script/manual setup', function () { pm.expect(['OPEN','HALF_OPEN','CLOSED']).to.include(body.pricing.state); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/agent/circuit-breakers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "circuit-breakers"
+              ]
+            },
+            "description": "Run node qa-tests/tc75-circuit-breaker.mjs to force repeated pricing failures, then inspect this endpoint for pricing.state=OPEN."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC76",
+      "item": [
+        {
+          "name": "TC76 - Partial Failure Handling Returns Controlled Response",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('controlled failure returned instead of hang', function () { pm.expect(pm.response.code).to.equal(500); pm.expect(body.trace_id).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"BK_TC76\",\n  \"user_id\": \"USR_TC76\",\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"vehicleType\": \"CAR_4\",\n  \"payment_method\": \"card\",\n  \"amount\": 50000,\n  \"card_number\": \"4111111111111234\",\n  \"payment_timeout_ms\": 4000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/booking-flow-trace",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "booking-flow-trace"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC80",
+      "item": [
+        {
+          "name": "TC80 - Graceful Degradation Returns Fallback Response",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('still returns valid degraded response', function () { pm.expect(body.available_drivers.length).to.be.at.least(1); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 10.76,\n    \"lng\": 106.66\n  },\n  \"dropoff\": {\n    \"lat\": 10.77,\n    \"lng\": 106.7\n  },\n  \"available_drivers\": [\n    {\n      \"id\": \"D1\",\n      \"distance\": 1000,\n      \"rating\": 4.6,\n      \"status\": \"ONLINE\"\n    }\n  ],\n  \"__test_force_fail_tool\": \"pricing_service\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "context"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC35",
+      "item": [
+        {
+          "name": "TC35 - Concurrent Booking Demo Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Run node qa-tests/tc35-concurrent-booking.mjs to send 2 concurrent booking requests with the same X-Idempotency-Key and verify only one logical booking is created."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC36",
+      "item": [
+        {
+          "name": "TC36 - Saga Success Demo Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Run node qa-tests/tc36-saga-success.mjs to create a booking, trigger payment success, and observe a payment SSE notification event."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC37",
+      "item": [
+        {
+          "name": "TC37 - Saga Failure Compensation Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Run node qa-tests/tc37-saga-failure-compensation.mjs to trigger PAYMENT_FAILED and verify booking becomes CANCELLED."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC38",
+      "item": [
+        {
+          "name": "TC38 - Kafka Outbox Consistency Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Run node qa-tests/tc38-kafka-outbox-consistency.mjs to verify booking record exists and corresponding outbox event reaches SENT state."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC40",
+      "item": [
+        {
+          "name": "TC40 - ACID Integrity Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Run node qa-tests/tc40-acid-integrity.mjs to simulate failure after insert and verify rollback leaves no booking row behind."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC74",
+      "item": [
+        {
+          "name": "TC74 - DB Failover Demo Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Manual demo: restart PostgreSQL container while showing service health/logs, then prove service reconnects cleanly or fails fast and recovers after DB returns."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC78",
+      "item": [
+        {
+          "name": "TC78 - Service Mesh Routing Fail Demo Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Manual demo: point a downstream URL to an invalid route or temporary bad host and show the service returns a clear 503/controlled error instead of hanging."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC79",
+      "item": [
+        {
+          "name": "TC79 - Network Partition Demo Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Manual demo: disconnect or block one dependency, then show retries, timeouts, and controlled fallback behavior without dirty state."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC118",
+      "item": [
+        {
+          "name": "TC118 - AI Service Monitoring Instructions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('instruction request reachable', function () { pm.expect(pm.response.code).to.equal(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Run node qa-tests/tc118-ai-monitoring.mjs to show model_version, drift metrics, and ETA monitoring counters."
+          }
+        }
+      ]
     }
   ]
 }

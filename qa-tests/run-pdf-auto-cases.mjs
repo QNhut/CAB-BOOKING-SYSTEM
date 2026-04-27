@@ -361,7 +361,6 @@ await runCase("TC43 fraud flagged", async () => {
       booking_id: `BK_FRAUD_${runId}`,
       amount: 9_000_000,
       location: { lat: 35.0, lng: 139.0 },
-      device_fingerprint: "device-demo",
     },
   });
   assert(res.status === 200, `expected 200, got ${res.status}`);

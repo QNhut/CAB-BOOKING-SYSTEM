@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import { Kafka } from "kafkajs";
 import { createLogger } from "../../shared/logger.js";
 import { createHttpMetrics } from "../../shared/http-metrics.js";
+import { createTracingMiddleware } from "../../shared/jaeger-tracing.js";
 
 const log = createLogger("booking-service");
 const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("booking-service");
@@ -15,6 +16,7 @@ const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("booking-servic
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(createTracingMiddleware("booking-service"));
 app.use(metricsMiddleware);
 
 const PORT = process.env.PORT || 8003;
@@ -54,8 +56,8 @@ function summarizeBookingRequest(body = {}) {
 
 function bookingRequestLoggingMiddleware(req, res, next) {
   const start = Date.now();
-  const traceId = req.headers["x-trace-id"] || crypto.randomBytes(16).toString("hex");
-  const requestId = req.headers["x-request-id"] || `req_${crypto.randomBytes(8).toString("hex")}`;
+  const traceId = req.traceId || req.headers["x-trace-id"] || crypto.randomBytes(16).toString("hex");
+  const requestId = req.requestId || req.headers["x-request-id"] || `req_${crypto.randomBytes(8).toString("hex")}`;
 
   req.traceId = traceId;
   req.requestId = requestId;
@@ -129,6 +131,20 @@ async function runMigrations() {
       await pool.query(sql);
       log.info("booking_migration_applied", { migration: m });
     }
+  }
+}
+
+function containsScriptTag(value) {
+  return typeof value === "string" && /<\s*script\b/i.test(value);
+}
+
+function assertSafeText(value, name) {
+  if (value == null) return;
+  if (typeof value !== "string") {
+    throw new ValidationError(`${name} must be a string`);
+  }
+  if (containsScriptTag(value)) {
+    throw new ValidationError(`${name} contains unsafe markup`);
   }
 }
 
@@ -249,11 +265,12 @@ app.get("/bookings/me/active", userAuthMiddleware, async (req, res) => {
 // Create booking
 app.post("/bookings", userAuthMiddleware, async (req, res) => {
   const client = await pool.connect();
+  let idempotencyKey;
   try {
     // ── Idempotency key support ─────────────────────────────────────────
     const simulateFailure = req.header("X-Test-Simulate-Failure");
     const forcedBookingId = req.header("X-Test-Booking-Id");
-    const idempotencyKey = req.header("X-Idempotency-Key");
+    idempotencyKey = req.header("X-Idempotency-Key");
     if (idempotencyKey) {
       const existing = await client.query(
         `SELECT id, status FROM bookings WHERE idempotency_key = $1 LIMIT 1`,
@@ -281,6 +298,8 @@ app.post("/bookings", userAuthMiddleware, async (req, res) => {
 
     assertLatLng(pickup, "pickup");
     assertLatLng(dropoff, "dropoff");
+    assertSafeText(pickup.address, "pickup.address");
+    assertSafeText(dropoff.address, "dropoff.address");
 
     if (!vehicleType) throw new Error("vehicleType is required");
     if (!paymentMethod) throw new Error("paymentMethod is required");
@@ -400,6 +419,17 @@ app.post("/bookings", userAuthMiddleware, async (req, res) => {
     res.json({ bookingId, status });
   } catch (e) {
     await client.query("ROLLBACK");
+    if (e?.code === "23505" && idempotencyKey) {
+      try {
+        const existing = await pool.query(
+          `SELECT id, status FROM bookings WHERE idempotency_key = $1 LIMIT 1`,
+          [idempotencyKey]
+        );
+        if (existing.rows.length > 0) {
+          return res.json({ bookingId: existing.rows[0].id, status: existing.rows[0].status, deduplicated: true });
+        }
+      } catch {}
+    }
     const status = e.statusCode || (e.name === "ValidationError" ? 422 : 400);
     res.status(status).json({ error: e.message || "Bad Request" });
   } finally {

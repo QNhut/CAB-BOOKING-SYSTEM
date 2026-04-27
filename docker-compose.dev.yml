@@ -7,6 +7,7 @@ services:
       PORT: ${PRICING_PORT}
       ETA_URL: ${ETA_URL:-http://eta-service:8009}
       REDIS_URL: ${REDIS_URL}
+      JAEGER_ZIPKIN_URL: ${JAEGER_ZIPKIN_URL:-http://jaeger:9411/api/v2/spans}
       TZ: ${TZ}
     ports:
       - "${PRICING_PORT}:${PRICING_PORT}"
@@ -31,6 +32,7 @@ services:
       KAFKA_BOOKING_TOPIC: ${KAFKA_BOOKING_TOPIC}
       KAFKA_RIDE_TOPIC: ${KAFKA_RIDE_TOPIC}
       JWT_SECRET: ${JWT_SECRET}
+      JAEGER_ZIPKIN_URL: ${JAEGER_ZIPKIN_URL:-http://jaeger:9411/api/v2/spans}
       TZ: ${TZ}
     ports:
       - "${BOOKING_PORT}:${BOOKING_PORT}"
@@ -62,6 +64,7 @@ services:
       KAFKA_RIDE_TOPIC: ${KAFKA_RIDE_TOPIC}
     volumes:
       - ./services/booking-service:/app
+      - ./shared:/shared
       - booking_node_modules:/app/node_modules
     command: sh -c "npm install && npm run worker"
     depends_on:
@@ -246,6 +249,7 @@ services:
       HB_TTL_SEC: ${HB_TTL_SEC:-60}
       STATE_TTL_SEC: ${STATE_TTL_SEC:-1800}
       JWT_SECRET: ${JWT_SECRET}
+      JAEGER_ZIPKIN_URL: ${JAEGER_ZIPKIN_URL:-http://jaeger:9411/api/v2/spans}
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
       - "${DRIVER_PORT:-8004}:${DRIVER_PORT:-8004}"
@@ -271,6 +275,7 @@ services:
       KAFKA_GROUP_ID: ${BOOKING_CONSUMER_GROUP_ID:-booking-compensation-service}
     volumes:
       - ./services/booking-service:/app
+      - ./shared:/shared
       - booking_consumer_node_modules:/app/node_modules
     command: sh -c "npm install && node consumer.js"
     depends_on:
@@ -357,6 +362,7 @@ services:
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
       KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
       KAFKA_PAYMENT_TOPIC: ${KAFKA_PAYMENT_TOPIC:-taxi.payments}
+      JAEGER_ZIPKIN_URL: ${JAEGER_ZIPKIN_URL:-http://jaeger:9411/api/v2/spans}
     ports:
       - "${PAYMENT_PORT:-8888}:${PAYMENT_PORT:-8888}"
     volumes:
@@ -413,6 +419,7 @@ services:
       REVIEW_URL: ${REVIEW_URL:-http://review-service:8011}
       AGENT_URL: ${AGENT_URL:-http://agent-service:8012}
       USER_URL: ${USER_URL:-http://user-service:8013}
+      JAEGER_ZIPKIN_URL: ${JAEGER_ZIPKIN_URL:-http://jaeger:9411/api/v2/spans}
     ports:
       - "${API_GATEWAY_PORT:-8000}:${API_GATEWAY_PORT:-8000}"
     volumes:
@@ -432,6 +439,7 @@ services:
       PORT: ${ETA_PORT:-8009}
       OSRM_BASE_URL: ${OSRM_BASE_URL}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      JAEGER_ZIPKIN_URL: ${JAEGER_ZIPKIN_URL:-http://jaeger:9411/api/v2/spans}
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
       - "${ETA_PORT:-8009}:${ETA_PORT:-8009}"
@@ -499,6 +507,8 @@ services:
       PRICING_URL: ${PRICING_URL:-http://pricing-service:8002}
       FRAUD_URL: ${FRAUD_URL:-http://fraud-service:8010}
       DRIVER_URL: ${DRIVER_URL:-http://driver-service:8004}
+      PAYMENT_URL: ${PAYMENT_URL:-http://payment-service:8888}
+      JAEGER_ZIPKIN_URL: ${JAEGER_ZIPKIN_URL:-http://jaeger:9411/api/v2/spans}
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
       - "${AGENT_PORT:-8012}:${AGENT_PORT:-8012}"
@@ -567,6 +577,18 @@ services:
       - ./observability/grafana/provisioning/dashboards/cab-booking.json:/var/lib/grafana/dashboards/cab-booking.json:ro
     depends_on:
       - prometheus
+    networks:
+      - taxi_net
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: taxi_jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+    ports:
+      - "16686:16686"
+      - "9411:9411"
     networks:
       - taxi_net
 

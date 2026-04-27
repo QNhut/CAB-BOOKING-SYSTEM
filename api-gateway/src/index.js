@@ -4,8 +4,8 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { metricsEndpoint, metricsMiddleware } from "./metrics.js";
-import crypto from "crypto";
 import { createLogger } from "../../shared/logger.js";
+import { createTracingMiddleware } from "../../shared/jaeger-tracing.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 8000);
@@ -33,15 +33,7 @@ app.use(helmet({
 }));
 
 // ── Distributed Tracing ────────────────────────────────────────────────────
-app.use((req, res, next) => {
-  const traceId = req.headers["x-trace-id"] || crypto.randomBytes(16).toString("hex");
-  const requestId = req.headers["x-request-id"] || `req_${crypto.randomBytes(8).toString("hex")}`;
-  req.headers["x-trace-id"] = traceId;
-  req.headers["x-request-id"] = requestId;
-  res.setHeader("X-Trace-Id", traceId);
-  res.setHeader("X-Request-Id", requestId);
-  next();
-});
+app.use(createTracingMiddleware("api-gateway"));
 
 // ── Security: Body size limit (reject >1 MB payloads) ───────────────────────
 // NOTE: Do NOT use express.json() here — it consumes the request body stream
@@ -55,13 +47,29 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── Security: Global rate limit (100 req / min / IP) ───────────────────────
+// ── Security: Burst rate limit (100 req / sec / IP) ────────────────────────
+const burstLimiter = rateLimit({
+  windowMs: 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many requests, please try again later",
+    limiter: "burst_per_second",
+  },
+});
+app.use(burstLimiter);
+
+// ── Security: Global rate limit (200 req / min / IP) ───────────────────────
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many requests, please try again later" },
+  message: {
+    error: "Too many requests, please try again later",
+    limiter: "global_per_minute",
+  },
 });
 app.use(globalLimiter);
 
@@ -77,7 +85,7 @@ const authLimiter = rateLimit({
 // ── CORS ────────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: "*",
-  allowedHeaders: ["Content-Type", "Authorization", "X-Idempotency-Key"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Idempotency-Key", "X-Trace-Id", "X-Request-Id", "X-Parent-Span-Id"],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 }));
 
@@ -101,6 +109,11 @@ function proxy(target) {
     changeOrigin: true,
     logLevel: "warn",
     on: {
+      proxyReq(proxyReq, req) {
+        if (req.traceId) proxyReq.setHeader("x-trace-id", req.traceId);
+        if (req.requestId) proxyReq.setHeader("x-request-id", req.requestId);
+        if (req.spanId) proxyReq.setHeader("x-parent-span-id", req.spanId);
+      },
       error(err, _req, res) {
         log.error("proxy_error", { upstream: target, error: err.message });
         if (res && !res.headersSent) {
@@ -123,9 +136,11 @@ const sseProxy = createProxyMiddleware({
   timeout: 0,
   on: {
     proxyReq(proxyReq, req) {
-      // Forward real IP
       const ip = req.socket?.remoteAddress || "";
       proxyReq.setHeader("x-forwarded-for", ip);
+      if (req.traceId) proxyReq.setHeader("x-trace-id", req.traceId);
+      if (req.requestId) proxyReq.setHeader("x-request-id", req.requestId);
+      if (req.spanId) proxyReq.setHeader("x-parent-span-id", req.spanId);
     },
     error(err, _req, res) {
       log.error("sse_proxy_error", { upstream: NOTIF_URL, error: err.message });
@@ -185,6 +200,11 @@ app.use("/payment", createProxyMiddleware({
   changeOrigin: true,
   pathRewrite: { "^/payment": "" },
   on: {
+    proxyReq(proxyReq, req) {
+      if (req.traceId) proxyReq.setHeader("x-trace-id", req.traceId);
+      if (req.requestId) proxyReq.setHeader("x-request-id", req.requestId);
+      if (req.spanId) proxyReq.setHeader("x-parent-span-id", req.spanId);
+    },
     error(err, _req, res) {
       log.error("proxy_error", { upstream: PAYMENT_URL, error: err.message });
       if (res && !res.headersSent) {

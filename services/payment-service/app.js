@@ -7,6 +7,7 @@ var bodyParser = require('body-parser');
 var order = require('./routes/order');
 const { handlePayment } = require("./payment-api");
 const { createHttpMetrics } = require("../../shared/http-metrics.cjs");
+const { createTracingMiddleware } = require("../../shared/jaeger-tracing.cjs");
 
 var app = express();
 const cors = require("cors");
@@ -14,6 +15,7 @@ const { metricsMiddleware, metricsEndpoint } = createHttpMetrics("payment-servic
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(createTracingMiddleware("payment-service"));
 app.use(metricsMiddleware);
 
 
