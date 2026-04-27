@@ -42,9 +42,9 @@ async function ensureUserToken() {
   return loginBody.accessToken;
 }
 
-async function createErrors(token) {
+async function createErrors(token, count = 60) {
   const tasks = [];
-  for (let i = 0; i < 24; i += 1) {
+  for (let i = 0; i < count; i += 1) {
     tasks.push(fetch(`${BASE_URL}/bookings`, {
       method: "POST",
       headers: {
@@ -85,9 +85,9 @@ async function getRuleState() {
 async function main() {
   const token = await ensureUserToken();
   console.log("triggering 5xx traffic for HighErrorRate...");
-  await createErrors(token);
+  await createErrors(token, 80);
   await sleep(35000);
-  await createErrors(token);
+  await createErrors(token, 80);
   await sleep(20000);
 
   const rule = await getRuleState();
