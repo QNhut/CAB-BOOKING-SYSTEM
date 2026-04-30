@@ -16,7 +16,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Nếu prod không muốn init mỗi lần, vẫn OK vì chỉ chạy lần đầu khi volume rỗng
-      - ./init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+      - ./infra/database/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taxi} -d ${POSTGRES_DB:-taxi_main}"]
       interval: 10s
@@ -222,7 +222,7 @@ services:
       DATABASE_URL: ${RIDE_DATABASE_URL}
       DRIVER_BASE_URL: http://driver-service:8004
       BOOKING_BASE_URL: http://booking-service:8003
-      GEO_BASE_URL: http://geo-service:8007
+      GEO_BASE_URL: http://ride-service:8005
       REDIS_URL: redis://redis:6379
       OFFER_TIMEOUT_SEC: ${OFFER_TIMEOUT_SEC:-10}
     ports:
@@ -258,20 +258,6 @@ services:
         condition: service_completed_successfully
     networks: [taxi_net]
 
-  geo-service:
-    image: ghcr.io/${IMAGE_REPO}/geo-service:${IMAGE_TAG}
-    container_name: taxi_geo
-    restart: unless-stopped
-    environment:
-      PORT: 8007
-      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY}
-      GEO_DEFAULT_LANG: ${GEO_DEFAULT_LANG:-vi}
-      GEO_DEFAULT_COUNTRY: ${GEO_DEFAULT_COUNTRY:-vn}
-      TZ: Asia/Ho_Chi_Minh
-    ports:
-      - "${GEO_PORT:-8007}:8007"
-    networks: [taxi_net]
-
   payment-service:
     image: ghcr.io/${IMAGE_REPO}/payment-service:${IMAGE_TAG}
     container_name: taxi_payment
@@ -303,7 +289,7 @@ services:
       DRIVER_URL: http://driver-service:8004
       RIDE_URL: http://ride-service:8005
       NOTIF_URL: http://notification-service:8006
-      GEO_URL: http://geo-service:8007
+      GEO_URL: http://ride-service:8005
       PAYMENT_URL: http://payment-service:8888
       TZ: Asia/Ho_Chi_Minh
     ports:

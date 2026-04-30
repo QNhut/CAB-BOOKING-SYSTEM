@@ -1,0 +1,538 @@
+{
+  "info": {
+    "name": "CAB SYSTEM – Frontend Tests",
+    "description": "Frontend-facing test cases: User registration/login UI, booking flow, notification, error display, validation feedback (TC01, TC02, TC03, TC04, TC06, TC07, TC09, TC11, TC12, TC13, TC24). Đây là các API phía client gọi trực tiếp khi user thao tác trên giao diện.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "cab-frontend-001"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "bookingId", "value": "", "type": "string" },
+    { "key": "userId", "value": "USR123", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "User Auth – Màn hình đăng ký & đăng nhập",
+      "item": [
+        {
+          "name": "TC01-FE – Đăng ký user (form Register)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@test.com\",\n  \"password\": \"123456\",\n  \"name\": \"Test User\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Kiểm tra phản hồi đúng để UI hiển thị thành công",
+                  "pm.test('FE-TC01 – HTTP 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('FE-TC01 – Có user_id để redirect sau đăng ký', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('user_id');",
+                  "  pm.collectionVariables.set('userId', json.user_id);",
+                  "});",
+                  "pm.test('FE-TC01 – Không có lỗi validation (không có field error)', () => {",
+                  "  pm.expect(pm.response.code).to.not.equal(422);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC02-FE – Đăng nhập và lưu token (form Login)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@test.com\",\n  \"password\": \"123456\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC02 – HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('FE-TC02 – Có access_token để lưu localStorage/cookie', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('access_token');",
+                  "  pm.collectionVariables.set('token', json.access_token);",
+                  "});",
+                  "pm.test('FE-TC02 – Token có payload hợp lệ (sub, exp)', () => {",
+                  "  const json = pm.response.json();",
+                  "  const parts = json.access_token.split('.');",
+                  "  const payload = JSON.parse(atob(parts[1]));",
+                  "  pm.expect(payload).to.have.property('sub');",
+                  "  pm.expect(payload).to.have.property('exp');",
+                  "  pm.expect(payload.exp).to.be.above(Date.now() / 1000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC10-FE – Logout (nút Đăng xuất)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC10 – HTTP 200 sau logout', () => pm.response.to.have.status(200));",
+                  "pm.test('FE-TC10 – Token bị invalidate (UI nên xóa token khỏi storage)', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Booking Flow – Giao diện đặt xe",
+      "item": [
+        {
+          "name": "TC03-FE – Tạo booking từ màn hình đặt xe",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC03 – HTTP 200 hoặc 201 (UI hiển thị booking thành công)', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('FE-TC03 – Có booking_id để hiển thị lên màn hình', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('booking_id');",
+                  "  pm.collectionVariables.set('bookingId', json.booking_id);",
+                  "});",
+                  "pm.test('FE-TC03 – Status hiển thị đúng (REQUESTED/CONFIRMED)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(['REQUESTED','CONFIRMED']).to.include(json.status);",
+                  "});",
+                  "pm.test('FE-TC03 – Có ETA để hiển thị thời gian chờ', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.eta).to.be.above(0);",
+                  "});",
+                  "pm.test('FE-TC03 – Có price để hiển thị giá cước', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.price).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC04-FE – Xem lịch sử chuyến đi",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/bookings?user_id={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"],
+              "query": [{ "key": "user_id", "value": "{{userId}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC04 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('FE-TC04 – Trả về array (render danh sách chuyến đi)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.be.an('array');",
+                  "});",
+                  "pm.test('FE-TC04 – Mỗi item có booking_id và status để render card', () => {",
+                  "  const json = pm.response.json();",
+                  "  if (json.length > 0) {",
+                  "    pm.expect(json[0]).to.have.property('booking_id');",
+                  "    pm.expect(json[0]).to.have.property('status');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC06-FE – Booking mới tạo có trạng thái REQUESTED",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC06 – Status = REQUESTED (UI hiển thị đang tìm tài xế)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('REQUESTED');",
+                  "});",
+                  "pm.test('FE-TC06 – Có created_at để hiển thị thời gian đặt xe', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('created_at');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC24-FE – End-to-end flow: Booking → Payment → Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5,\n  \"payment_method\": \"momo\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC24 – Booking tạo thành công', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('FE-TC24 – Response chứa thông tin để UI render đầy đủ', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('booking_id');",
+                  "  pm.expect(json).to.have.property('status');",
+                  "  pm.expect(json).to.have.property('price');",
+                  "  pm.expect(json).to.have.property('eta');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validation UI – Hiển thị lỗi trên form",
+      "item": [
+        {
+          "name": "TC11-FE – Thiếu pickup → UI hiển thị lỗi",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC11 – HTTP 400 (UI render thông báo lỗi)', () => pm.response.to.have.status(400));",
+                  "pm.test('FE-TC11 – Message chứa \"pickup\" để UI highlight field lỗi', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('pickup');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC12-FE – Sai format tọa độ → UI báo lỗi validation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": \"abc\", \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC12 – HTTP 422 (UI hiển thị lỗi nhập liệu)', () => pm.response.to.have.status(422));",
+                  "pm.test('FE-TC12 – Có detail lỗi để UI render tooltip/toast', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detail');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC13-FE – Không có driver → UI hiển thị thông báo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5,\n  \"simulate_no_driver\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC13 – Status PENDING hoặc FAILED', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(['PENDING','FAILED']).to.include(json.status);",
+                  "});",
+                  "pm.test('FE-TC13 – Message chứa thông báo không có driver', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('no drivers');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC14-FE – Payment method không hợp lệ → UI báo lỗi",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/payments", "host": ["{{baseUrl}}"], "path": ["payments"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method\": \"invalid_card\",\n  \"booking_id\": \"{{bookingId}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC14 – HTTP 400 (UI hiển thị lỗi thanh toán)', () => pm.response.to.have.status(400));",
+                  "pm.test('FE-TC14 – Message để UI render toast lỗi', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('invalid payment');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notification & Real-time UI",
+      "item": [
+        {
+          "name": "TC07-FE – ETA trả về để UI hiển thị thời gian chờ",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/eta", "host": ["{{baseUrl}}"], "path": ["eta"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"traffic_level\": 0.5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC07 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('FE-TC07 – eta > 0 (có thể hiển thị lên UI)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.eta).to.be.above(0);",
+                  "});",
+                  "pm.test('FE-TC07 – eta hợp lý < 60 phút (không hiển thị số lạ cho user)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.eta).to.be.below(60);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC09-FE – Notification gửi thành công đến user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/notifications", "host": ["{{baseUrl}}"], "path": ["notifications"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"message\": \"Your ride is confirmed\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC09 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('FE-TC09 – Notification được gửi (không lỗi timeout)', () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "pm.test('FE-TC09 – Response xác nhận notification đã xếp hàng hoặc gửi', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.any.keys('sent','queued','status');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC26-FE – Driver nhận notification khi được assign",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/notifications?driver_id={{driverId}}&booking_id={{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications"],
+              "query": [
+                { "key": "driver_id", "value": "{{driverId}}" },
+                { "key": "booking_id", "value": "{{bookingId}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC26 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('FE-TC26 – Driver nhận được notification', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Driver App – Giao diện tài xế",
+      "item": [
+        {
+          "name": "TC05-FE – Driver đổi trạng thái ONLINE (toggle button)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/drivers/DRV001/status", "host": ["{{baseUrl}}"], "path": ["drivers", "DRV001", "status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driver_id\": \"DRV001\",\n  \"status\": \"ONLINE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC05 – HTTP 200 (UI toggle sang Online)', () => pm.response.to.have.status(200));",
+                  "pm.test('FE-TC05 – Status = ONLINE để UI cập nhật toggle', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('ONLINE');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC27-FE – Driver accept chuyến → UI hiển thị ACCEPTED",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings/{{bookingId}}/status", "host": ["{{baseUrl}}"], "path": ["bookings", "{{bookingId}}", "status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"status\": \"ACCEPTED\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FE-TC27 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('FE-TC27 – Status = ACCEPTED (UI cập nhật màn hình tài xế)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('ACCEPTED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

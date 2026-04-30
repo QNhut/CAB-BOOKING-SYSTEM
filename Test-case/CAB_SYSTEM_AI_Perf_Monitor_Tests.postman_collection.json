@@ -1,0 +1,1432 @@
+{
+  "info": {
+    "name": "CAB SYSTEM – AI, Performance & Monitoring Tests",
+    "description": "Các test còn lại: AI Service Validation, AI Agent Logic, Performance & Load, Failure & Resilience, Monitoring (Level 5–8, 12). Dựa trên 121 test cases PROJECT CAB-SYSTEM.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "cab-ai-perf-mon-001"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "BK123",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "USR123",
+      "type": "string"
+    },
+    {
+      "key": "driverId",
+      "value": "DRV001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Setup – Login (auto)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Set token OUTSIDE pm.test() so it is always saved even if assertions fail",
+              "const respJson = pm.response.json();",
+              "const tok = respJson.access_token || respJson.accessToken;",
+              "if (tok) pm.collectionVariables.set(\"token\", tok);",
+              "",
+              "pm.test(\"Setup: Login 200 OK\", () => {",
+              "  pm.expect(pm.response.code).to.equal(200);",
+              "  pm.expect(tok).to.not.be.undefined;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"user@test.com\", \"password\": \"123456\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "LEVEL 5 – AI Service Validation (TC41–50)",
+      "item": [
+        {
+          "name": "TC41 – ETA model output trong range hợp lý",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "eta"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"traffic_level\": 0.5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC41 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC41 – eta > 0', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.eta).to.be.above(0);",
+                  "});",
+                  "pm.test('TC41 – eta < 60 phút (hợp lý)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.eta).to.be.below(60);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC42 – Pricing surge > 1 khi demand cao",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pricing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pricing"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"demand_index\": 2.5,\n  \"supply_index\": 0.5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC42 – surge > 1 khi demand cao', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.surge_multiplier).to.be.above(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC43 – Fraud score > threshold → flagged",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/detect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fraud",
+                "detect"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"USR_SUSPICIOUS\",\n  \"driver_id\": \"DRV001\",\n  \"booking_id\": \"BK_FRAUD\",\n  \"amount\": 9999999,\n  \"device_fingerprint\": \"bot-device-001\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC43 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC43 – flagged = true khi fraud score cao', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.flagged).to.equal(true);",
+                  "  pm.expect(json.fraud_score).to.be.above(0.7);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC44 – Recommendation trả top-3 drivers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/recommend-drivers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "recommend-drivers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC44 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC44 – Trả về đúng 3 drivers', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.drivers).to.be.an('array').with.lengthOf(3);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC45 – Forecast trả dữ liệu đúng format",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/forecast",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "forecast"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"area\": \"district_1\",\n  \"time_window\": \"next_1h\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC45 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC45 – Forecast có field demand_forecast và timestamp', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('demand_forecast');",
+                  "  pm.expect(json).to.have.property('timestamp');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC46 – Model version được trả về đúng",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ai/model-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "model-info"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC46 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC46 – Có model_version trong response', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('model_version');",
+                  "  pm.expect(json.model_version).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC47 – AI latency < 200ms",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "eta"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"traffic_level\": 0.5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC47 – AI response time < 200ms', () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC49 – Model fallback khi lỗi",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "eta"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"traffic_level\": 0.5,\n  \"simulate_model_fail\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC49 – Không crash khi model lỗi (có fallback)', () => {",
+                  "  pm.expect(pm.response.code).to.not.equal(500);",
+                  "});",
+                  "pm.test('TC49 – Trả về giá trị fallback eta > 0', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.eta).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC50 – Input bất thường → model không crash",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "eta"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": -999,\n  \"traffic_level\": 999\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC50 – Không trả 500 với input bất thường', () => {",
+                  "  pm.expect(pm.response.code).to.not.equal(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LEVEL 6 – AI Agent Logic (TC51–60)",
+      "item": [
+        {
+          "name": "TC51 – Agent chọn driver gần nhất",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/agent/match-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "agent",
+                "match-driver"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"available_drivers\": [\n    {\"id\": \"D1\", \"distance\": 2, \"rating\": 4.8, \"status\": \"ONLINE\"},\n    {\"id\": \"D2\", \"distance\": 1, \"rating\": 4.5, \"status\": \"ONLINE\"},\n    {\"id\": \"D3\", \"distance\": 5, \"rating\": 4.9, \"status\": \"ONLINE\"}\n  ],\n  \"priority\": \"nearest\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC51 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC51 – Agent chọn driver D2 (distance = 1, gần nhất)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.selected_driver_id).to.equal('D2');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC52 – Agent chọn driver có rating cao hơn",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/agent/match-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "agent",
+                "match-driver"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"available_drivers\": [\n    {\"id\": \"D1\", \"distance\": 2, \"rating\": 4.8, \"status\": \"ONLINE\"},\n    {\"id\": \"D2\", \"distance\": 2, \"rating\": 4.5, \"status\": \"ONLINE\"}\n  ],\n  \"priority\": \"rating\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC52 – Agent chọn D1 (rating 4.8 > 4.5)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.selected_driver_id).to.equal('D1');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC53 – Agent cân bằng ETA vs Price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/agent/match-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "agent",
+                "match-driver"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"context\": {\n    \"traffic_level\": 0.7,\n    \"demand_index\": 1.5,\n    \"supply_index\": 0.8\n  },\n  \"priority\": \"balanced\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC53 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC53 – Agent trả về driver và lý do chọn', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('selected_driver_id');",
+                  "  pm.expect(json).to.have.property('reason');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC54 – Agent gọi đúng tool (ETA vs Pricing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/agent/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "agent",
+                "decide"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"task\": \"calculate_eta\",\n  \"booking_id\": \"{{bookingId}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC54 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC54 – Tool được gọi là ETA không phải Pricing', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.tool_called).to.equal('eta_service');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC55 – Agent xử lý context thiếu dữ liệu",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/agent/match-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "agent",
+                "match-driver"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC55 – Không crash khi context thiếu dữ liệu', () => {",
+                  "  pm.expect(pm.response.code).to.not.equal(500);",
+                  "});",
+                  "pm.test('TC55 – Trả về lỗi rõ ràng hoặc fallback', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC57 – Agent không chọn driver offline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/agent/match-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "agent",
+                "match-driver"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"available_drivers\": [\n    {\"id\": \"D1\", \"distance\": 1, \"rating\": 4.9, \"status\": \"OFFLINE\"},\n    {\"id\": \"D2\", \"distance\": 3, \"rating\": 4.6, \"status\": \"ONLINE\"}\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC57 – Agent chọn D2 (ONLINE), không chọn D1 (OFFLINE)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.selected_driver_id).to.equal('D2');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC58 – Agent log decision đầy đủ",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/agent/logs?booking_id={{bookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "agent",
+                "logs"
+              ],
+              "query": [
+                {
+                  "key": "booking_id",
+                  "value": "{{bookingId}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC58 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC58 – Log có đủ thông tin decision', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('decisions');",
+                  "  pm.expect(json.decisions).to.be.an('array').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC60 – Agent fallback rule-based khi AI fail",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/agent/match-driver",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "agent",
+                "match-driver"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"available_drivers\": [\n    {\"id\": \"D1\", \"distance\": 2, \"rating\": 4.8, \"status\": \"ONLINE\"}\n  ],\n  \"simulate_ai_fail\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC60 – Không crash khi AI fail', () => {",
+                  "  pm.expect(pm.response.code).to.not.equal(500);",
+                  "});",
+                  "pm.test('TC60 – Vẫn trả về driver (fallback rule-based)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('selected_driver_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LEVEL 7 – Performance & Load Test (TC61–70)",
+      "item": [
+        {
+          "name": "TC62 – ETA service under load",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "eta"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"traffic_level\": 0.5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Dùng Postman Runner với 100 iterations để giả lập load",
+                  "pm.test('TC62 – HTTP 200 dưới load', () => pm.response.to.have.status(200));",
+                  "pm.test('TC62 – Response time < 500ms dưới load', () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC63 – Pricing service under spike",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pricing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pricing"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 10,\n  \"demand_index\": 3.0,\n  \"supply_index\": 0.3\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC63 – HTTP 200 dưới spike demand', () => pm.response.to.have.status(200));",
+                  "pm.test('TC63 – Response time < 500ms', () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC68 – P95 latency < 300ms",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Chạy với nhiều iterations trong Postman Runner để đo P95",
+                  "pm.test('TC68 – Response time < 300ms (P95 target)', () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(300);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LEVEL 8 – Failure & Resilience (TC71–80)",
+      "item": [
+        {
+          "name": "TC72 – Pricing service timeout → retry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pricing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pricing"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"demand_index\": 1.0,\n  \"simulate_timeout\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC72 – Không trả 500 khi Pricing timeout (có retry/fallback)', () => {",
+                  "  pm.expect(pm.response.code).to.not.equal(500);",
+                  "});",
+                  "pm.test('TC72 – Trả về giá fallback hoặc 503 rõ ràng', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC75 – Circuit breaker open",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "eta"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"traffic_level\": 0.5,\n  \"simulate_circuit_open\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC75 – Circuit breaker trả 503 hoặc fallback khi mở', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+                  "});",
+                  "pm.test('TC75 – Không trả 500 (không crash)', () => {",
+                  "  pm.expect(pm.response.code).to.not.equal(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC77 – Retry exponential backoff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"payment_method\": \"momo\",\n  \"simulate_transient_fail\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC77 – Sau retry, cuối cùng thành công hoặc fail graceful', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 503]);",
+                  "});",
+                  "pm.test('TC77 – Không crash hệ thống', () => {",
+                  "  pm.expect(pm.response.code).to.not.equal(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC80 – Graceful degradation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5,\n  \"simulate_partial_service_down\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC80 – Hệ thống vẫn hoạt động khi một service down (graceful)', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const tok = pm.collectionVariables.get('token') || pm.environment.get('token') || pm.globals.get('token');",
+              "if (!tok) {",
+              "  pm.sendRequest({",
+              "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json' },",
+              "    body: { mode: 'raw', raw: JSON.stringify({ email: 'user@test.com', password: '123456' }) }",
+              "  }, function(err, res) {",
+              "    if (!err && res && res.code === 200) {",
+              "      const j = res.json();",
+              "      const t = j.access_token || j.accessToken;",
+              "      if (t) {",
+              "        pm.collectionVariables.set('token', t);",
+              "        pm.environment.set('token', t);",
+              "      }",
+              "    }",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "LEVEL 12 – Monitoring (TC111–120)",
+      "item": [
+        {
+          "name": "TC111 – Logging đầy đủ request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Request-ID",
+                "value": "req-trace-001"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC111 – HTTP 200/201', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('TC111 – Response có X-Request-ID hoặc trace_id', () => {",
+                  "  const traceId = pm.response.headers.get('X-Request-ID') ||",
+                  "                  pm.response.headers.get('X-Trace-ID');",
+                  "  pm.expect(traceId).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC112 – Structured logging format (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/logs/latest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logs",
+                "latest"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC112 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC112 – Log entries là JSON với timestamp, service_name, level', () => {",
+                  "  const json = pm.response.json();",
+                  "  const logs = json.logs || json;",
+                  "  if (Array.isArray(logs) && logs.length > 0) {",
+                  "    pm.expect(logs[0]).to.have.property('timestamp');",
+                  "    pm.expect(logs[0]).to.have.property('service_name');",
+                  "    pm.expect(logs[0]).to.have.property('level');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC113 – Metrics Prometheus endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC113 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC113 – Có request_count metric', () => {",
+                  "  pm.expect(pm.response.text()).to.include('request_count');",
+                  "});",
+                  "pm.test('TC113 – Có latency metric', () => {",
+                  "  pm.expect(pm.response.text()).to.include('latency');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC115 – Distributed tracing – trace_id xuyên suốt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Trace-ID",
+                "value": "trace-e2e-001"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC115 – HTTP 200/201', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('TC115 – trace_id được propagate qua response header', () => {",
+                  "  const traceId = pm.response.headers.get('X-Trace-ID');",
+                  "  pm.expect(traceId).to.equal('trace-e2e-001');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC118 – AI service monitoring (inference time, model version)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "eta"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"traffic_level\": 0.5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC118 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC118 – Response có inference_time_ms', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('inference_time_ms');",
+                  "  pm.expect(json.inference_time_ms).to.be.above(0);",
+                  "});",
+                  "pm.test('TC118 – Response có model_version', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('model_version');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC120 – Resource monitoring (CPU, Memory metrics)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics/resources",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics",
+                "resources"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC120 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC120 – Có CPU và memory metrics', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.any.keys('cpu_usage', 'memory_usage');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const tok = pm.collectionVariables.get('token') || pm.environment.get('token') || pm.globals.get('token');",
+              "if (!tok) {",
+              "  pm.sendRequest({",
+              "    url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json' },",
+              "    body: { mode: 'raw', raw: JSON.stringify({ email: 'user@test.com', password: '123456' }) }",
+              "  }, function(err, res) {",
+              "    if (!err && res && res.code === 200) {",
+              "      const j = res.json();",
+              "      const t = j.access_token || j.accessToken;",
+              "      if (t) {",
+              "        pm.collectionVariables.set('token', t);",
+              "        pm.environment.set('token', t);",
+              "      }",
+              "    }",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "MCP Context & Integration (TC28)",
+      "item": [
+        {
+          "name": "TC28 – MCP context được fetch thành công",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/mcp/context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "mcp",
+                "context"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ride_id\": \"{{bookingId}}\",\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC28 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC28 – Context có đầy đủ ETA, pricing, driver', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('eta');",
+                  "  pm.expect(json).to.have.property('pricing');",
+                  "  pm.expect(json).to.have.property('available_drivers');",
+                  "});",
+                  "pm.test('TC28 – Không lỗi permission', () => {",
+                  "  pm.expect(pm.response.code).to.not.equal(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": []
+}

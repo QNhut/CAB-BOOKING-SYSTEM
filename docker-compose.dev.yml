@@ -1,6 +1,6 @@
 services:
   pricing-service:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_pricing_dev
     working_dir: /app
     environment:
@@ -11,7 +11,7 @@ services:
     ports:
       - "${PRICING_PORT}:${PRICING_PORT}"
     volumes:
-      - ./services/pricing-service:/app
+      - ./backend/services/pricing-service:/app
       - pricing_node_modules:/app/node_modules
     command: sh -c "npm install && npm run dev"
     depends_on:
@@ -20,7 +20,7 @@ services:
     networks:
       - taxi_net
   booking-service:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_booking_dev
     working_dir: /app
     environment:
@@ -34,8 +34,8 @@ services:
     ports:
       - "${BOOKING_PORT}:${BOOKING_PORT}"
     volumes:
-      - ./services/booking-service:/app
-      - ./shared:/shared
+      - ./backend/services/booking-service:/app
+      - ./backend/shared:/shared
       - booking_node_modules:/app/node_modules
     command: sh -c "npm install && npm run dev"
     depends_on:
@@ -48,7 +48,7 @@ services:
     networks:
       - taxi_net
   booking-worker:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_booking_worker_dev
     working_dir: /app
     environment:
@@ -60,7 +60,7 @@ services:
       KAFKA_BOOKING_TOPIC: ${KAFKA_BOOKING_TOPIC}
       KAFKA_RIDE_TOPIC: ${KAFKA_RIDE_TOPIC}
     volumes:
-      - ./services/booking-service:/app
+      - ./backend/services/booking-service:/app
       - booking_node_modules:/app/node_modules
     command: sh -c "npm install && npm run worker"
     depends_on:
@@ -73,7 +73,7 @@ services:
     networks:
       - taxi_net
   auth-service:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_auth_dev
     working_dir: /app
     environment:
@@ -87,8 +87,8 @@ services:
     ports:
       - "${AUTH_PORT}:${AUTH_PORT}"
     volumes:
-      - ./services/auth-service:/app
-      - ./shared:/shared
+      - ./backend/services/auth-service:/app
+      - ./backend/shared:/shared
       - auth_node_modules:/app/node_modules
     command: sh -c "npm install && npm run dev"
     depends_on:
@@ -109,7 +109,7 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql
+      - ./infra/database/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -199,7 +199,7 @@ services:
       - taxi_net
     restart: "no"
   ride-service:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_ride_dev
     working_dir: /app
     ports:
@@ -214,18 +214,26 @@ services:
       DATABASE_URL: ${RIDE_DATABASE_URL:-postgres://taxi:taxi_pass@postgres:5432/ride_db}
       DRIVER_BASE_URL: ${DRIVER_URL:-http://driver-service:8004}
       BOOKING_BASE_URL: ${BOOKING_URL:-http://booking-service:8003}
-      GEO_BASE_URL: ${GEO_URL:-http://geo-service:8007}
       AUTH_BASE_URL: ${AUTH_URL:-http://auth-service:8001}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       OFFER_TIMEOUT_SEC: ${OFFER_TIMEOUT_SEC:-10}
       DRIVER_RETRY_INTERVAL_SEC: ${DRIVER_RETRY_INTERVAL_SEC:-10}
       DRIVER_RETRY_MAX_ATTEMPTS: ${DRIVER_RETRY_MAX_ATTEMPTS:-12}
       JWT_SECRET: ${JWT_SECRET}
+      # geo (merged)
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY}
+      GEO_DEFAULT_LANG: ${GEO_DEFAULT_LANG:-vi}
+      GEO_DEFAULT_COUNTRY: ${GEO_DEFAULT_COUNTRY:-vn}
+      # agent (merged) — eta/fraud now live in pricing/payment
+      ETA_URL: http://pricing-service:8002
+      PRICING_URL: ${PRICING_URL:-http://pricing-service:8002}
+      FRAUD_URL: http://payment-service:8888
+      DRIVER_URL: ${DRIVER_URL:-http://driver-service:8004}
     volumes:
-      - ./services/ride-service:/app
-      - ./shared:/shared
+      - ./backend/services/ride-service:/app
+      - ./backend/shared:/shared
       - ride_node_modules:/app/node_modules
-    command: sh -c "npm install && node index.js"
+    command: sh -c "npm install && npm run dev"
     depends_on:
       kafka:
         condition: service_healthy
@@ -235,7 +243,7 @@ services:
       - taxi_net
 
   driver-service:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_driver_dev
     working_dir: /app
     environment:
@@ -248,8 +256,8 @@ services:
     ports:
       - "${DRIVER_PORT:-8004}:${DRIVER_PORT:-8004}"
     volumes:
-      - ./services/driver-service:/app
-      - ./shared:/shared
+      - ./backend/services/driver-service:/app
+      - ./backend/shared:/shared
       - driver_node_modules:/app/node_modules
     command: sh -c "npm install && npm run dev"
     depends_on:
@@ -258,7 +266,7 @@ services:
     networks:
       - taxi_net
   booking-consumer:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_booking_consumer
     working_dir: /app
     environment:
@@ -267,9 +275,9 @@ services:
       KAFKA_RIDE_TOPIC: ${KAFKA_RIDE_TOPIC:-taxi.rides}
       KAFKA_GROUP_ID: ${BOOKING_CONSUMER_GROUP_ID:-booking-service}
     volumes:
-      - ./services/booking-service:/app
+      - ./backend/services/booking-service:/app
       - booking_node_modules:/app/node_modules
-    command: sh -c "npm install && node consumer.js"
+    command: sh -c "npm install && node workers/consumer.js"
     depends_on:
       postgres:
         condition: service_healthy
@@ -280,7 +288,7 @@ services:
     networks:
       - taxi_net
   driver-client:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_driver_client_d1
     working_dir: /app
     environment:
@@ -290,7 +298,7 @@ services:
       DRIVER_ID: ${DRIVER_CLIENT_ID:-d1}
       RIDE_BASE_URL: ${RIDE_URL:-http://ride-service:8005}
     volumes:
-      - ./services/driver-client:/app
+      - ./backend/services/driver-client:/app
       - driver_client_node_modules:/app/node_modules
     command: sh -c "npm install kafkajs axios && node index.js"
     depends_on:
@@ -301,7 +309,7 @@ services:
     networks:
       - taxi_net
   notification-service:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_notification_dev
     working_dir: /app
     environment:
@@ -316,7 +324,7 @@ services:
     ports:
       - "${NOTIF_PORT:-8006}:${NOTIF_PORT:-8006}"
     volumes:
-      - ./services/notification-service:/app
+      - ./backend/services/notification-service:/app
       - notification_node_modules:/app/node_modules
     command: sh -c "npm install && npm run dev"
     depends_on:
@@ -324,24 +332,6 @@ services:
         condition: service_healthy
     networks:
       - taxi_net
-  geo-service:
-    image: node:20-alpine
-    container_name: taxi_geo_dev
-    working_dir: /app
-    environment:
-      PORT: ${GEO_PORT:-8007}
-      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY}
-      GEO_DEFAULT_LANG: ${GEO_DEFAULT_LANG:-vi}
-      GEO_DEFAULT_COUNTRY: ${GEO_DEFAULT_COUNTRY:-vn}
-    ports:
-      - "${GEO_PORT:-8007}:${GEO_PORT:-8007}"
-    volumes:
-      - ./services/geo-service:/app
-      - geo_node_modules:/app/node_modules
-    command: sh -c "npm install && npm start"
-    networks:
-      - taxi_net
-
   payment-service:
     image: node:18-alpine
     container_name: taxi_payment_dev
@@ -352,44 +342,39 @@ services:
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
       KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
       KAFKA_PAYMENT_TOPIC: ${KAFKA_PAYMENT_TOPIC:-taxi.payments}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      FRAUD_THRESHOLD: ${FRAUD_THRESHOLD:-0.7}
     ports:
       - "${PAYMENT_PORT:-8888}:${PAYMENT_PORT:-8888}"
     volumes:
-      - ./services/payment-service:/app
+      - ./backend/services/payment-service:/app
       - payment_node_modules:/app/node_modules
     command: sh -c "npm install && npm start"
     depends_on:
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - taxi_net
 
   frontend:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_frontend_dev
     working_dir: /app
     environment:
-      VITE_AUTH_URL: ${VITE_AUTH_URL:-http://localhost:8000}
-      VITE_BOOKING_URL: ${VITE_BOOKING_URL:-http://localhost:8000}
-      VITE_PRICING_URL: ${VITE_PRICING_URL:-http://localhost:8000}
-      VITE_DRIVER_URL: ${VITE_DRIVER_URL:-http://localhost:8000}
-      VITE_RIDE_URL: ${VITE_RIDE_URL:-http://localhost:8000}
-      VITE_NOTIFICATION_URL: ${VITE_NOTIFICATION_URL:-http://localhost:8000}
-      VITE_GEO_URL: ${VITE_GEO_URL:-http://localhost:8000}
-      VITE_PAYMENT_URL: ${VITE_PAYMENT_URL:-http://localhost:8000}
-      VITE_ETA_URL: ${VITE_ETA_URL:-http://localhost:8000}
-      VITE_REVIEW_URL: ${VITE_REVIEW_URL:-http://localhost:8000}
+      VITE_API_PROXY_TARGET: http://api-gateway:8000
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:
-      - ./taxi-fe:/app
+      - ./frontend:/app
       - frontend_node_modules:/app/node_modules
     command: sh -c "npm install && npm run dev"
     networks:
       - taxi_net
 
   api-gateway:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_api_gateway
     working_dir: /app
     environment:
@@ -400,65 +385,27 @@ services:
       DRIVER_URL: ${DRIVER_URL:-http://driver-service:8004}
       RIDE_URL: ${RIDE_URL:-http://ride-service:8005}
       NOTIF_URL: ${NOTIF_URL:-http://notification-service:8006}
-      GEO_URL: ${GEO_URL:-http://geo-service:8007}
+      GEO_URL: http://ride-service:8005
       PAYMENT_URL: ${PAYMENT_URL:-http://payment-service:8888}
-      ETA_URL: ${ETA_URL:-http://eta-service:8009}
-      FRAUD_URL: ${FRAUD_URL:-http://fraud-service:8010}
+      ETA_URL: http://pricing-service:8002
+      FRAUD_URL: http://payment-service:8888
       REVIEW_URL: ${REVIEW_URL:-http://review-service:8011}
-      AGENT_URL: ${AGENT_URL:-http://agent-service:8012}
+      AGENT_URL: http://ride-service:8005
       USER_URL: ${USER_URL:-http://user-service:8013}
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_PATH: /app/node_modules
     ports:
       - "${API_GATEWAY_PORT:-8000}:${API_GATEWAY_PORT:-8000}"
     volumes:
-      - ./api-gateway:/app
+      - ./backend/api-gateway:/app
       - api_gateway_node_modules:/app/node_modules
+      - ./backend/shared:/shared
     command: sh -c "npm install && npm run dev"
-    networks:
-      - taxi_net
-
-  eta-service:
-    image: node:20-alpine
-    container_name: taxi_eta_dev
-    working_dir: /app
-    environment:
-      PORT: ${ETA_PORT:-8009}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      TZ: ${TZ:-Asia/Ho_Chi_Minh}
-    ports:
-      - "${ETA_PORT:-8009}:${ETA_PORT:-8009}"
-    volumes:
-      - ./services/eta-service:/app
-      - eta_node_modules:/app/node_modules
-    command: sh -c "npm install && npm run dev"
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - taxi_net
-
-  fraud-service:
-    image: node:20-alpine
-    container_name: taxi_fraud_dev
-    working_dir: /app
-    environment:
-      PORT: ${FRAUD_PORT:-8010}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      FRAUD_THRESHOLD: ${FRAUD_THRESHOLD:-0.7}
-      TZ: ${TZ:-Asia/Ho_Chi_Minh}
-    ports:
-      - "${FRAUD_PORT:-8010}:${FRAUD_PORT:-8010}"
-    volumes:
-      - ./services/fraud-service:/app
-      - fraud_node_modules:/app/node_modules
-    command: sh -c "npm install && npm run dev"
-    depends_on:
-      redis:
-        condition: service_healthy
     networks:
       - taxi_net
 
   review-service:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_review_dev
     working_dir: /app
     environment:
@@ -468,7 +415,7 @@ services:
     ports:
       - "${REVIEW_PORT:-8011}:${REVIEW_PORT:-8011}"
     volumes:
-      - ./services/review-service:/app
+      - ./backend/services/review-service:/app
       - review_node_modules:/app/node_modules
     command: sh -c "npm install && npm run dev"
     depends_on:
@@ -477,32 +424,26 @@ services:
     networks:
       - taxi_net
 
-  agent-service:
-    image: node:20-alpine
-    container_name: taxi_agent_dev
+  cab-booking-agents:
+    image: python:3.11-slim
+    container_name: taxi_cab_agents_dev
     working_dir: /app
     environment:
-      PORT: ${AGENT_PORT:-8012}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      ETA_URL: ${ETA_URL:-http://eta-service:8009}
-      PRICING_URL: ${PRICING_URL:-http://pricing-service:8002}
-      FRAUD_URL: ${FRAUD_URL:-http://fraud-service:8010}
-      DRIVER_URL: ${DRIVER_URL:-http://driver-service:8004}
-      TZ: ${TZ:-Asia/Ho_Chi_Minh}
-    ports:
-      - "${AGENT_PORT:-8012}:${AGENT_PORT:-8012}"
+      ENABLE_LLM_DECISION: ${ENABLE_LLM_DECISION:-true}
+      LLM_PROVIDER: ${LLM_PROVIDER:-google}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      GOOGLE_MODEL: ${GOOGLE_MODEL:-gemini-2.5-flash}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    # No exposed port — internal to taxi_net only, called by booking-service
     volumes:
-      - ./services/agent-service:/app
-      - ./shared:/shared
-      - agent_node_modules:/app/node_modules
-    command: sh -c "npm install && npm run dev"
-    depends_on:
-      - redis
+      - ./backend/services/cab-booking-agents:/app
+    command: sh -c "pip install -r requirements.txt -q && uvicorn app.main:app --host 0.0.0.0 --port 8014 --reload"
     networks:
       - taxi_net
 
   user-service:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: taxi_user_dev
     working_dir: /app
     environment:
@@ -513,8 +454,8 @@ services:
     ports:
       - "${USER_PORT:-8013}:${USER_PORT:-8013}"
     volumes:
-      - ./services/user-service:/app
-      - ./shared:/shared
+      - ./backend/services/user-service:/app
+      - ./backend/shared:/shared
       - user_node_modules:/app/node_modules
     command: sh -c "npm install && npm run dev"
     depends_on:
@@ -575,11 +516,8 @@ volumes:
   frontend_node_modules:
   api_gateway_node_modules:
   payment_node_modules:
-  geo_node_modules:
-  eta_node_modules:
-  fraud_node_modules:
   review_node_modules:
-  agent_node_modules:
   user_node_modules:
+  cab_agents_pip_cache:
   prometheus_data:
   grafana_data:

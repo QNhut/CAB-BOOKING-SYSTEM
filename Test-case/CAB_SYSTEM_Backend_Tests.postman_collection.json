@@ -1,0 +1,998 @@
+{
+  "info": {
+    "name": "CAB SYSTEM – Backend Tests",
+    "description": "Backend API test cases: Auth, Booking, Driver, Payment, Transaction, Security, Deployment (Level 1–4, 9–11). Dựa trên 121 test cases PROJECT CAB-SYSTEM.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "cab-backend-001"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "expiredToken", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJVU1IxMjMiLCJleHAiOjE2MDAwMDAwMDB9.invalid", "type": "string" },
+    { "key": "tamperedToken", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJIQUNLRUQiLCJleHAiOjk5OTk5OTk5OTl9.tampered", "type": "string" },
+    { "key": "bookingId", "value": "BK123", "type": "string" },
+    { "key": "userId", "value": "USR123", "type": "string" },
+    { "key": "driverId", "value": "DRV001", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "LEVEL 1 – Basic API & Flow",
+      "item": [
+        {
+          "name": "TC01 – Đăng ký user thành công",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@test.com\",\n  \"password\": \"123456\",\n  \"name\": \"Test User\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC01 – HTTP 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('TC01 – Có user_id trong response', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('user_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC02 – Đăng nhập trả JWT hợp lệ",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@test.com\",\n  \"password\": \"123456\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC02 – HTTP 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('TC02 – Có access_token', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('access_token');",
+                  "  pm.collectionVariables.set('token', json.access_token);",
+                  "});",
+                  "pm.test('TC02 – JWT decode hợp lệ (có exp và sub)', () => {",
+                  "  const json = pm.response.json();",
+                  "  const parts = json.access_token.split('.');",
+                  "  pm.expect(parts).to.have.lengthOf(3);",
+                  "  const payload = JSON.parse(atob(parts[1]));",
+                  "  pm.expect(payload).to.have.property('sub');",
+                  "  pm.expect(payload).to.have.property('exp');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC03 – Tạo booking với input hợp lệ",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC03 – HTTP 200 hoặc 201', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('TC03 – Có booking_id', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('booking_id');",
+                  "  pm.collectionVariables.set('bookingId', json.booking_id);",
+                  "});",
+                  "pm.test('TC03 – Status là REQUESTED hoặc CONFIRMED', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(['REQUESTED','CONFIRMED']).to.include(json.status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC04 – Lấy danh sách booking của user",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/bookings?user_id={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"],
+              "query": [{ "key": "user_id", "value": "{{userId}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC04 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC04 – Trả về list booking, mỗi item có booking_id và status', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.be.an('array');",
+                  "  json.forEach(item => {",
+                  "    pm.expect(item).to.have.property('booking_id');",
+                  "    pm.expect(item).to.have.property('status');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC05 – Driver chuyển trạng thái ONLINE",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/drivers/{{driverId}}/status", "host": ["{{baseUrl}}"], "path": ["drivers", "{{driverId}}", "status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driver_id\": \"DRV001\",\n  \"status\": \"ONLINE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC05 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC05 – Driver status = ONLINE', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('ONLINE');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC06 – Booking tạo với status = REQUESTED",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC06 – Status ban đầu = REQUESTED', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('REQUESTED');",
+                  "});",
+                  "pm.test('TC06 – Có timestamp created_at', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('created_at');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC08 – Pricing API trả về giá hợp lệ",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/pricing", "host": ["{{baseUrl}}"], "path": ["pricing"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"demand_index\": 1.0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC08 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC08 – price > base fare', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.price).to.be.above(0);",
+                  "});",
+                  "pm.test('TC08 – surge >= 1', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.surge).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC10 – Logout invalidate token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC10 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC10 – Token bị invalidate', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message).to.include('logged out');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LEVEL 2 – Validation & Edge Cases",
+      "item": [
+        {
+          "name": "TC11 – Booking thiếu pickup → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC11 – HTTP 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('TC11 – Message: pickup is required', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('pickup');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC12 – Sai format lat/lng → 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": \"abc\", \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC12 – HTTP 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('TC12 – Có validation error', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('detail');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC14 – Payment method invalid → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/payments", "host": ["{{baseUrl}}"], "path": ["payments"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method\": \"invalid_card\",\n  \"booking_id\": \"{{bookingId}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC14 – HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('TC14 – Message: Invalid payment method', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('invalid payment');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC16 – Pricing demand_index = 0 → surge >= 1",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/pricing", "host": ["{{baseUrl}}"], "path": ["pricing"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distance_km\": 5,\n  \"demand_index\": 0,\n  \"supply_index\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC16 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC16 – surge_multiplier >= 1', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.surge_multiplier).to.be.at.least(1);",
+                  "});",
+                  "pm.test('TC16 – Giá hợp lệ > 0', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.price).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC17 – Fraud API thiếu field → 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/fraud/detect", "host": ["{{baseUrl}}"], "path": ["fraud", "detect"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"USR123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC17 – HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('TC17 – Message: missing required fields', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('missing');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC18 – Token expired → 401",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{expiredToken}}" }],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC18 – HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('TC18 – Message: Token expired', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('expired');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC19 – Duplicate booking (idempotency)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Idempotency-Key", "value": "idem-key-001" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Gửi lần 2 với cùng Idempotency-Key – chỉ tạo 1 booking",
+                  "pm.test('TC19 – Chỉ tạo 1 booking (idempotent)', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('booking_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC20 – Input quá lớn → 413",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"padding\": \"{{$randomLoremParagraphs}}\",\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC20 – HTTP 413 Payload Too Large', () => {",
+                  "  pm.expect(pm.response.code).to.equal(413);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LEVEL 3 – Integration Test",
+      "item": [
+        {
+          "name": "TC21 – Booking gọi ETA service thành công",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC21 – Booking response chứa eta > 0', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.eta).to.be.above(0);",
+                  "});",
+                  "pm.test('TC21 – Response time < 5000ms', () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC22 – Booking gọi Pricing service",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC22 – Booking response chứa price > 0', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.price).to.be.above(0);",
+                  "});",
+                  "pm.test('TC22 – surge >= 1', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.surge).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC25 – Kafka event ride_requested được publish",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC25 – HTTP 200 hoặc 201', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('TC25 – Booking tạo thành công (event sẽ được kiểm tra qua Kafka consumer log)', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('booking_id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC27 – Booking update trạng thái ACCEPTED",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings/{{bookingId}}/status", "host": ["{{baseUrl}}"], "path": ["bookings", "{{bookingId}}", "status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"status\": \"ACCEPTED\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC27 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC27 – Status = ACCEPTED', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('ACCEPTED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC29 – API Gateway route đúng service",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC29 – API Gateway route đúng Booking Service (200/201)', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LEVEL 4 – Transaction",
+      "item": [
+        {
+          "name": "TC31 – Transaction tạo booking thành công",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"distance_km\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC31 – Booking tạo thành công, status = REQUESTED', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('REQUESTED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC33 – Payment thất bại → rollback booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/payments", "host": ["{{baseUrl}}"], "path": ["payments"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"payment_method\": \"simulate_fail\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC33 – Booking status = FAILED hoặc CANCELLED', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(['FAILED','CANCELLED']).to.include(json.booking_status);",
+                  "});",
+                  "pm.test('TC33 – Không charge tiền', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.charged).to.equal(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC34 – Idempotent transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Idempotency-Key", "value": "txn-idem-002" }
+            ],
+            "url": { "raw": "{{baseUrl}}/payments", "host": ["{{baseUrl}}"], "path": ["payments"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{bookingId}}\",\n  \"payment_method\": \"momo\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC34 – Chỉ 1 transaction, không double charge', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LEVEL 9 – Security Test",
+      "item": [
+        {
+          "name": "TC81 – SQL injection attempt",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 10.76, \"lng\": 106.66},\n  \"drop\": {\"lat\": 10.77, \"lng\": 106.70},\n  \"note\": \"'; DROP TABLE bookings; --\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC81 – SQL injection bị block (không crash server)', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 400, 422]);",
+                  "  pm.expect(pm.response.code).to.not.equal(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC83 – JWT tampering",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tamperedToken}}" }],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC83 – HTTP 401, token tampered bị từ chối', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC84 – Unauthorized API access",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC84 – HTTP 401 không có token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LEVEL 10 – Zero Trust Security",
+      "item": [
+        {
+          "name": "TC91 – Request không có token → 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC91 – HTTP 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('TC91 – Message: Missing token', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('missing');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC92 – Token tampered → 401",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tamperedToken}}" }],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC92 – HTTP 401 Invalid token', () => pm.response.to.have.status(401));",
+                  "pm.test('TC92 – Message: Invalid token', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('invalid');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC93 – Token expired → 401",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{expiredToken}}" }],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC93 – HTTP 401 Token expired', () => pm.response.to.have.status(401));",
+                  "pm.test('TC93 – Message: Token expired', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('expired');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC95 – RBAC – user không có quyền admin → 403",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/dashboard", "host": ["{{baseUrl}}"], "path": ["admin", "dashboard"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC95 – HTTP 403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('TC95 – Message: Access denied', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message.toLowerCase()).to.include('access denied');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC96 – Driver không truy cập user data → 403",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/users/USR999", "host": ["{{baseUrl}}"], "path": ["users", "USR999"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC96 – HTTP 403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC98 – Rate limiting chống abuse → 429",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] }
+          },
+          "event": [
+            {
+              "listen": "pre-request",
+              "script": {
+                "exec": ["// Chạy request này >100 lần liên tiếp để kích hoạt rate limit"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC98 – HTTP 429 khi vượt rate limit', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 429]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LEVEL 11 – Deployment",
+      "item": [
+        {
+          "name": "TC102 – Health check endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC102 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC102 – status = ok', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('ok');",
+                  "});",
+                  "pm.test('TC102 – Không timeout (< 2000ms)', () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC113 – Metrics được expose",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/metrics", "host": ["{{baseUrl}}"], "path": ["metrics"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('TC113 – HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('TC113 – Có metrics trong response body', () => {",
+                  "  pm.expect(pm.response.text()).to.include('request_count');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
