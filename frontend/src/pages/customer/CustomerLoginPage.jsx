@@ -275,8 +275,12 @@ const CustomerLoginPage = ({ onLogin, defaultMode = 'login' }) => {
         console.error('Profile setup warning:', profileRequestError);
       }
 
-      setSuccessMessage(accountType === 'DRIVER' ? 'Driver account created. Redirecting to onboarding...' : 'Passenger account created. Redirecting to booking flow...');
-      finalizeAuth(accountType, registerData);
+      alert('Đăng ký thành công! Vui lòng đăng nhập.');
+      if (window.navigateTo) {
+        window.navigateTo('/customer/login');
+      } else {
+        window.location.href = '/customer/login';
+      }
     } catch (requestError) {
       console.error('Customer register error:', requestError);
       setError('Unable to reach the server. Please try again.');

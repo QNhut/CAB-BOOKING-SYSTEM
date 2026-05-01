@@ -51,6 +51,23 @@ const readResponsePayload = async (response) => {
   return text ? { error: text, message: text } : {};
 };
 
+// Normalize a lat/lng value that may have come back as a string
+const toNum = (v) => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const formatDist = (m) => {
+  if (!m) return '';
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`;
+};
+
+const formatDuration = (s) => {
+  if (!s) return '';
+  const m = Math.round(s / 60);
+  return m < 60 ? `${m} phút` : `${Math.floor(m / 60)} giờ ${m % 60} phút`;
+};
+
 const CustomerRideOptionsPage = () => {
   const [selectedRide, setSelectedRide] = useState('car4');
   const [isPaymentSheetOpen, setIsPaymentSheetOpen] = useState(false);
@@ -61,10 +78,23 @@ const CustomerRideOptionsPage = () => {
     car7: { fare: 0, distanceM: 0, durationS: 0 }
   });
   const [loadingPrice, setLoadingPrice] = useState(true);
+  const [pricingError, setPricingError] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
 
-  const pickup = (() => { try { return JSON.parse(sessionStorage.getItem('pickup')) || DEFAULT_PICKUP; } catch { return DEFAULT_PICKUP; } })();
-  const dropoff = (() => { try { return JSON.parse(sessionStorage.getItem('dropoff')) || DEFAULT_DROPOFF; } catch { return DEFAULT_DROPOFF; } })();
+  // Read and normalize pickup/dropoff — ensure lat/lng are always numbers
+  const rawPickup = (() => { try { return JSON.parse(sessionStorage.getItem('pickup')) || DEFAULT_PICKUP; } catch { return DEFAULT_PICKUP; } })();
+  const rawDropoff = (() => { try { return JSON.parse(sessionStorage.getItem('dropoff')) || DEFAULT_DROPOFF; } catch { return DEFAULT_DROPOFF; } })();
+
+  const pickup = {
+    ...rawPickup,
+    lat: toNum(rawPickup.lat) ?? DEFAULT_PICKUP.lat,
+    lng: toNum(rawPickup.lng) ?? DEFAULT_PICKUP.lng,
+  };
+  const dropoff = {
+    ...rawDropoff,
+    lat: toNum(rawDropoff.lat) ?? DEFAULT_DROPOFF.lat,
+    lng: toNum(rawDropoff.lng) ?? DEFAULT_DROPOFF.lng,
+  };
   
   const routeLine = [[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]];
   const mapCenter = [(pickup.lat + dropoff.lat) / 2, (pickup.lng + dropoff.lng) / 2];
@@ -73,40 +103,53 @@ const CustomerRideOptionsPage = () => {
     sessionStorage.setItem('currentPaymentMethod', selectedPaymentMethod);
   }, [selectedPaymentMethod]);
 
-  useEffect(() => {
-    const fetchPricing = async (vehicleType, typeKey) => {
+  const loadPricing = async () => {
+    setLoadingPrice(true);
+    setPricingError(false);
+
+    const fetchOne = async (vehicleType, typeKey) => {
+      const body = { pickup: { lat: pickup.lat, lng: pickup.lng }, dropoff: { lat: dropoff.lat, lng: dropoff.lng }, vehicleType };
+      console.log('[Pricing] Request:', JSON.stringify(body));
       try {
-        const res = await fetch(`/pricing/estimate`, {
+        const res = await fetch('/pricing/estimate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pickup, dropoff, vehicleType })
+          body: JSON.stringify(body),
         });
-
-        if (res.ok) {
-          const data = await readResponsePayload(res);
+        const data = await readResponsePayload(res);
+        console.log(`[Pricing] Response ${vehicleType}:`, data);
+        if (res.ok && data.fare) {
           setPricingMap(prev => ({
             ...prev,
             [typeKey]: {
               fare: data.fare,
-              distanceM: data.distanceM || 5000,
-              durationS: data.durationS || 600,
-              currency: data.currency || 'VND'
+              distanceM: data.distanceM || 0,
+              durationS: data.durationS || 0,
+              currency: data.currency || 'VND',
+              routeSource: data.routeSource,
             }
           }));
         } else {
-          const errorPayload = await readResponsePayload(res);
-          console.error(`Pricing failed for ${vehicleType}:`, errorPayload.error || errorPayload.message || res.status);
+          console.error(`[Pricing] Error ${vehicleType}:`, data.error || data);
+          return false;
         }
+        return true;
       } catch (err) {
-        console.error('Pricing failed', err);
+        console.error('[Pricing] Network error:', err);
+        return false;
       }
     };
 
-    Promise.all([
-      fetchPricing(RIDE_OPTIONS.car4.vehicleType, 'car4'),
-      fetchPricing(RIDE_OPTIONS.car7.vehicleType, 'car7'),
-    ]).finally(() => setLoadingPrice(false));
-  }, []);
+    const results = await Promise.all([
+      fetchOne(RIDE_OPTIONS.car4.vehicleType, 'car4'),
+      fetchOne(RIDE_OPTIONS.car7.vehicleType, 'car7'),
+    ]);
+
+    if (!results.every(Boolean)) setPricingError(true);
+    setLoadingPrice(false);
+  };
+
+  useEffect(() => { loadPricing(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBookRide = async () => {
     setBookingLoading(true);
@@ -221,8 +264,31 @@ const CustomerRideOptionsPage = () => {
       </div>
 
       <div className="absolute bottom-0 w-full z-20 bg-white dark:bg-slate-900 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.15)] flex flex-col h-[55%]">
-        <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mt-3 mb-1"></div>
-        
+        <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mt-3 mb-1" />
+
+        {/* Route summary strip */}
+        <div className="px-4 pb-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">
+          <span className="font-semibold text-blue-600 truncate max-w-[38%]">{pickup.address || pickup.name}</span>
+          <span className="material-symbols-outlined text-[14px] shrink-0">arrow_forward</span>
+          <span className="font-semibold text-rose-600 truncate max-w-[38%]">{dropoff.address || dropoff.name}</span>
+          {pricingMap.car4.distanceM > 0 && (
+            <span className="ml-auto shrink-0 font-bold text-slate-700 dark:text-slate-300">
+              {formatDist(pricingMap.car4.distanceM)}
+            </span>
+          )}
+        </div>
+
+        {/* Error banner */}
+        {pricingError && (
+          <div className="mx-4 mt-2 px-3 py-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl flex items-center gap-2">
+            <span className="material-symbols-outlined text-amber-500 text-[18px]">warning</span>
+            <p className="text-xs text-amber-700 dark:text-amber-300 flex-1">Không tải được giá. Kiểm tra kết nối.</p>
+            <button onClick={loadPricing} className="text-xs font-bold text-amber-700 dark:text-amber-300 underline">
+              Thử lại
+            </button>
+          </div>
+        )}
+
         <div className="flex-grow overflow-y-auto px-4 py-2">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-3">Chọn xe</h2>
           
@@ -232,17 +298,22 @@ const CustomerRideOptionsPage = () => {
               className={`p-3 rounded-2xl border-2 flex items-center gap-4 transition-all cursor-pointer ${selectedRide === 'car4' ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10' : 'border-transparent bg-slate-50 dark:bg-slate-800'}`}
             >
               <img src={RIDE_OPTIONS.car4.image} alt="Car 4" className={RIDE_OPTIONS.car4.imageClassName} />
-              <div className="flex-grow">
+              <div className="flex-grow min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-slate-800 dark:text-white">{RIDE_OPTIONS.car4.title}</h3>
+                  <h3 className="font-bold text-slate-800 dark:text-white text-sm">{RIDE_OPTIONS.car4.title}</h3>
                   <span className="material-symbols-outlined text-[14px] text-slate-500">person</span>
                   <span className="text-xs font-bold text-slate-500">{RIDE_OPTIONS.car4.seats}</span>
                 </div>
-                <p className="text-xs text-slate-500">~{Math.round((pricingMap.car4.durationS || RIDE_OPTIONS.car4.etaMinutes * 60) / 60)} phút • Ô tô 4 chỗ</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {pricingMap.car4.distanceM > 0
+                    ? `${formatDist(pricingMap.car4.distanceM)} • ${formatDuration(pricingMap.car4.durationS)}`
+                    : `~${RIDE_OPTIONS.car4.etaMinutes} phút • Ô tô 4 chỗ`
+                  }
+                </p>
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 {loadingPrice ? (
-                  <div className="w-16 h-5 bg-slate-200 animate-pulse rounded"></div>
+                  <div className="w-16 h-5 bg-slate-200 animate-pulse rounded" />
                 ) : (
                   <p className="font-black text-lg text-slate-900 dark:text-white">{(pricingMap.car4.fare || 0).toLocaleString('vi-VN')}đ</p>
                 )}
@@ -255,17 +326,22 @@ const CustomerRideOptionsPage = () => {
               className={`p-3 rounded-2xl border-2 flex items-center gap-4 transition-all cursor-pointer ${selectedRide === 'car7' ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10' : 'border-transparent bg-slate-50 dark:bg-slate-800'}`}
             >
               <img src={RIDE_OPTIONS.car7.image} alt="Car 7" className={RIDE_OPTIONS.car7.imageClassName} />
-              <div className="flex-grow">
+              <div className="flex-grow min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-slate-800 dark:text-white">{RIDE_OPTIONS.car7.title}</h3>
+                  <h3 className="font-bold text-slate-800 dark:text-white text-sm">{RIDE_OPTIONS.car7.title}</h3>
                   <span className="material-symbols-outlined text-[14px] text-slate-500">person</span>
                   <span className="text-xs font-bold text-slate-500">{RIDE_OPTIONS.car7.seats}</span>
                 </div>
-                <p className="text-xs text-slate-500">~{Math.round((pricingMap.car7.durationS || RIDE_OPTIONS.car7.etaMinutes * 60) / 60)} phút • Ô tô 7 chỗ</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {pricingMap.car7.distanceM > 0
+                    ? `${formatDist(pricingMap.car7.distanceM)} • ${formatDuration(pricingMap.car7.durationS)}`
+                    : `~${RIDE_OPTIONS.car7.etaMinutes} phút • Ô tô 7 chỗ`
+                  }
+                </p>
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 {loadingPrice ? (
-                  <div className="w-16 h-5 bg-slate-200 animate-pulse rounded"></div>
+                  <div className="w-16 h-5 bg-slate-200 animate-pulse rounded" />
                 ) : (
                   <p className="font-black text-lg text-slate-900 dark:text-white">{(pricingMap.car7.fare || 0).toLocaleString('vi-VN')}đ</p>
                 )}

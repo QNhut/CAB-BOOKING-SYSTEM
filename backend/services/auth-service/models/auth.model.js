@@ -170,3 +170,17 @@ export async function updateAccountStatus(id, status) {
 export async function deleteAccount(client, id) {
   return client.query("DELETE FROM accounts WHERE id = $1 RETURNING id", [id]);
 }
+
+export async function updateAccountCredentials(id, identifier, passwordHash) {
+  if (passwordHash) {
+    return pool.query(
+      "UPDATE accounts SET identifier = $1, password_hash = $2 WHERE id = $3 RETURNING id, identifier, role",
+      [identifier, passwordHash, id]
+    );
+  } else {
+    return pool.query(
+      "UPDATE accounts SET identifier = $1 WHERE id = $2 RETURNING id, identifier, role",
+      [identifier, id]
+    );
+  }
+}

@@ -16,6 +16,18 @@ html, body, #root {
 }
 button, input { font: inherit; }
 
+/* ── Leaflet Routing Machine — ẩn panel chỉ dẫn ─────────────────── */
+.leaflet-routing-container,
+.leaflet-routing-alt,
+.leaflet-routing-geocoders { display: none !important; }
+
+/* Đường route đẹp hơn */
+.leaflet-interactive[stroke="#3b82f6"] {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+
 /* ── Admin CSS Variables (Light / Dark theme) ─────────────────────── */
 :root {
   --bg-dark: #f4f6f8;

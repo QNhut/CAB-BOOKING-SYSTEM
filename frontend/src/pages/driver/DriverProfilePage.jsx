@@ -25,18 +25,28 @@ const DriverProfilePage = ({ toggleTheme, isDarkMode, onLogout }) => {
   const [driverInfo, setDriverInfo] = useState(null);
   const [stats, setStats] = useState({ totalTrips: 0, totalIncome: 0 });
   const [activeSheet, setActiveSheet] = useState(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editForm, setEditForm] = useState({ fullName: '', phone: '', identifier: '', password: '' });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem('token');
-        const [authRes, driverRes, historyRes] = await Promise.all([
+        const [authRes, profileRes, driverRes, historyRes] = await Promise.all([
           fetch('/auth/me', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/auth/profile', { headers: { 'Authorization': `Bearer ${token}` } }),
           fetch('/drivers/me', { headers: { 'Authorization': `Bearer ${token}` } }),
           fetch('/drivers/me/rides/history', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
         
-        if (authRes.ok) {
+        if (authRes.ok && profileRes.ok) {
+          const authData = await authRes.json();
+          const profileData = await profileRes.json();
+          const accountInfo = authData.account || authData.user || authData;
+          const profileInfo = profileData.profile || {};
+          setUser({ ...accountInfo, ...profileInfo });
+        } else if (authRes.ok) {
           const data = await authRes.json();
           setUser(data.account || data.user || data);
         }
@@ -69,6 +79,65 @@ const DriverProfilePage = ({ toggleTheme, isDarkMode, onLogout }) => {
     }
   };
 
+  const handleEditProfileToggle = () => {
+    if (!isEditingProfile) {
+      setEditForm({
+        fullName: user?.full_name || '',
+        phone: user?.phone || '',
+        identifier: user?.identifier || '',
+        password: ''
+      });
+    }
+    setIsEditingProfile(!isEditingProfile);
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const reqHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+
+      const [profileRes, accountRes] = await Promise.all([
+        fetch('/auth/profile', {
+          method: 'PUT',
+          headers: reqHeaders,
+          body: JSON.stringify({ fullName: editForm.fullName, phone: editForm.phone })
+        }),
+        fetch('/auth/account', {
+          method: 'PUT',
+          headers: reqHeaders,
+          body: JSON.stringify({ identifier: editForm.identifier, password: editForm.password || undefined })
+        })
+      ]);
+
+      if (profileRes.ok && accountRes.ok) {
+        const profileData = await profileRes.json();
+        const accountData = await accountRes.json();
+        setUser(prev => ({ 
+          ...prev, 
+          full_name: profileData.profile?.full_name || prev.full_name, 
+          phone: profileData.profile?.phone || prev.phone,
+          identifier: accountData.account?.identifier || prev.identifier
+        }));
+        setIsEditingProfile(false);
+        if (editForm.password) {
+          alert("Cập nhật thông tin thành công. Mật khẩu của bạn đã được thay đổi.");
+        }
+      } else {
+        const errData = await accountRes.json().catch(() => null);
+        alert(`Có lỗi xảy ra: ${errData?.error || "Không thể lưu thông tin."}`);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Lỗi kết nối khi lưu thông tin.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const renderSheetContent = () => {
     switch (activeSheet) {
       case 'profile':
@@ -77,11 +146,90 @@ const DriverProfilePage = ({ toggleTheme, isDarkMode, onLogout }) => {
           subtitle: 'Thông tin đang đồng bộ từ auth-service và driver-service.',
           content: (
             <div className="space-y-3">
-              <InfoRow label="Họ tên" value={user?.full_name || 'Tài xế'} />
+              {isEditingProfile ? (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 pl-1">Họ tên</label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-blue-500 transition-colors"
+                      value={editForm.fullName}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, fullName: e.target.value }))}
+                      placeholder="Nhập họ tên..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 pl-1">Số điện thoại</label>
+                    <input
+                      type="tel"
+                      className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-blue-500 transition-colors"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="Nhập số điện thoại..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 pl-1">Tài khoản</label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-blue-500 transition-colors"
+                      value={editForm.identifier}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, identifier: e.target.value }))}
+                      placeholder="Nhập tài khoản mới..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 pl-1">Mật khẩu mới</label>
+                    <input
+                      type="password"
+                      className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-blue-500 transition-colors"
+                      value={editForm.password}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Bỏ trống nếu không đổi..."
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <InfoRow label="Họ tên" value={user?.full_name || 'Tài xế'} />
+                  <InfoRow label="Số điện thoại" value={user?.phone || 'Chưa cập nhật'} />
+                </>
+              )}
               <InfoRow label="Tài khoản" value={user?.identifier} />
               <InfoRow label="Vai trò" value={user?.role || 'DRIVER'} />
               <InfoRow label="Trạng thái" value={user?.status || 'ACTIVE'} />
               <InfoRow label="Mã tài xế" value={driverInfo?.driverId || driverInfo?.id || user?.id} />
+            </div>
+          ),
+          footer: (
+            <div className="flex gap-3">
+              {isEditingProfile ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(false)}
+                    className="flex-1 rounded-2xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveProfile}
+                    disabled={isSaving}
+                    className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-70"
+                  >
+                    {isSaving ? 'Đang lưu...' : 'Lưu lại'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleEditProfileToggle}
+                  className="w-full rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-teal-600 dark:text-teal-400 px-4 py-3 text-sm font-semibold"
+                >
+                  Chỉnh sửa thông tin
+                </button>
+              )}
             </div>
           )
         };
@@ -255,7 +403,10 @@ const DriverProfilePage = ({ toggleTheme, isDarkMode, onLogout }) => {
         isOpen={Boolean(sheet)}
         title={sheet?.title}
         subtitle={sheet?.subtitle}
-        onClose={() => setActiveSheet(null)}
+        onClose={() => {
+          setActiveSheet(null);
+          setIsEditingProfile(false);
+        }}
         footer={sheet?.footer}
       >
         {sheet?.content}

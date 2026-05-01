@@ -8,6 +8,7 @@ import {
   getUserProfile, getDriverProfile, upsertUserProfile, upsertDriverProfile,
   getUserProfileInternal, getDriverProfileInternal,
   listAccounts, getAccountRole, updateAccountField, updateAccountStatus, deleteAccount,
+  updateAccountCredentials,
 } from "../models/auth.model.js";
 import {
   hashToken, generateRefreshToken, signAccessToken, createRefreshToken, JWT_ACCESS_TTL,
@@ -271,6 +272,39 @@ export async function updateProfile(req, res) {
     return res.status(400).json({ error: "Unsupported role" });
   } catch (err) {
     console.error("[AUTH] profile PUT error:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── Account PUT ───────────────────────────────────────────────────────────────
+export async function updateAccount(req, res) {
+  try {
+    const { accountId } = req.auth;
+    const { identifier, password } = req.body || {};
+
+    if (!identifier) {
+      return res.status(400).json({ error: "Tên tài khoản không được để trống" });
+    }
+
+    // Check if new identifier is taken by another account
+    const existing = await checkIdentifierExists(identifier, pool);
+    if (existing.rows.length > 0 && existing.rows[0].id !== accountId) {
+      return res.status(409).json({ error: "Tên tài khoản đã tồn tại" });
+    }
+
+    let passwordHash = null;
+    if (password) {
+      passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    }
+
+    const r = await updateAccountCredentials(accountId, identifier, passwordHash);
+    if (r.rows.length === 0) {
+      return res.status(404).json({ error: "Account not found" });
+    }
+
+    return res.json({ ok: true, account: { id: r.rows[0].id, identifier: r.rows[0].identifier, role: r.rows[0].role } });
+  } catch (err) {
+    console.error("[AUTH] account PUT error:", err.message);
     res.status(500).json({ error: "Internal server error" });
   }
 }

@@ -47,12 +47,12 @@ app.use((req, res, next) => {
 // ── Security: Body size limit (reject large payloads early) ────────────────
 // Uses Content-Length header only — do NOT consume the stream here since
 // http-proxy-middleware must be able to pipe req → proxyReq intact.
-// Limit = 400 B: all real API request bodies are ≤ 340 B;
-// Postman $randomLoremParagraphs produces ≥ 900 B, reliably triggering 413.
+// Limit = 10 KB: enough for booking requests with full address strings,
+// but still blocks abnormally large injection payloads (≥ 10 KB).
 app.use((req, res, next) => {
   if (!["POST", "PUT", "PATCH"].includes(req.method)) return next();
   const len = parseInt(req.headers["content-length"] || "0", 10);
-  if (len > 400) return res.status(413).json({ error: "Payload Too Large" });
+  if (len > 10240) return res.status(413).json({ error: "Payload Too Large" });
   next();
 });
 

@@ -1,11 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import LeafletMap from '../../components/LeafletMap';
 
+// ─── Cancel Confirm Sheet ─────────────────────────────────────────────────────
+const CancelSheet = ({ onConfirm, onClose, loading }) => (
+  <div className="absolute inset-0 z-50 flex items-end">
+    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+    <div className="relative w-full bg-white dark:bg-slate-900 rounded-t-3xl shadow-2xl px-6 pt-4 pb-8">
+      <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-5" />
+      <div className="flex flex-col items-center text-center mb-6">
+        <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 rounded-full flex items-center justify-center mb-3">
+          <span className="material-symbols-outlined text-rose-500 text-[32px]">cancel</span>
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Hủy chuyến đi?</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Tài xế đang trên đường đến. Bạn có chắc chắn muốn hủy không?
+        </p>
+      </div>
+      <div className="flex gap-3">
+        <button onClick={onClose} disabled={loading}
+          className="flex-1 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-sm hover:bg-slate-200 transition-colors disabled:opacity-50">
+          Không, tiếp tục
+        </button>
+        <button onClick={onConfirm} disabled={loading}
+          className="flex-1 py-3.5 bg-rose-500 text-white font-bold rounded-2xl text-sm hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+          {loading ? (
+            <><span className="material-symbols-outlined text-[18px] animate-spin">refresh</span>Đang hủy...</>
+          ) : 'Xác nhận hủy'}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 const CustomerTrackingPage = () => {
   const [booking, setBooking] = useState(null);
   const [ride, setRide] = useState(null);
   const [driver, setDriver] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showCancelSheet, setShowCancelSheet] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const driverFetchedRef = React.useRef(false);
 
   // Poll status from backend
@@ -119,15 +152,27 @@ const CustomerTrackingPage = () => {
       ];
 
   const handleCancel = async () => {
-     if (!confirm("Bạn có chắc chắn muốn hủy chuyến?")) return;
-     const token = localStorage.getItem('token');
-     try {
-       await fetch(`/bookings/${booking.id}/cancel`, {
-         method: 'POST',
-         headers: { 'Authorization': `Bearer ${token}` }
-       });
-       window.navigateTo('/customer/home');
-     } catch(e) { console.error(e); }
+    setCancelLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/bookings/${booking.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        sessionStorage.removeItem('currentBookingId');
+        sessionStorage.removeItem('currentPaymentMethod');
+        window.navigateTo('/customer/home');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(`Không thể hủy: ${data.error || 'Vui lòng thử lại.'}`);
+        setCancelLoading(false);
+        setShowCancelSheet(false);
+      }
+    } catch (e) {
+      console.error(e);
+      setCancelLoading(false);
+    }
   };
 
   return (
@@ -155,9 +200,16 @@ const CustomerTrackingPage = () => {
             </p>
           </div>
         </div>
-        <button onClick={handleCancel} className="w-10 h-10 bg-white dark:bg-slate-900 rounded-full shadow-lg flex items-center justify-center text-rose-500 border border-slate-200 dark:border-slate-800">
-          <span className="material-symbols-outlined text-[20px]">gpp_bad</span>
-        </button>
+        {/* Cancel button — only when driver hasn't started the trip yet */}
+        {!isInProgress && (
+          <button
+            onClick={() => setShowCancelSheet(true)}
+            className="absolute top-12 right-4 w-10 h-10 bg-white dark:bg-slate-900 rounded-full shadow-lg flex items-center justify-center text-rose-500 border border-slate-200 dark:border-slate-800 hover:bg-rose-50 transition-colors z-10"
+            title="Hủy chuyến"
+          >
+            <span className="material-symbols-outlined text-[20px]">gpp_bad</span>
+          </button>
+        )}
       </div>
 
       <div className="absolute bottom-0 w-full z-20 bg-white dark:bg-slate-900 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.15)] flex flex-col pt-3 pb-safe">

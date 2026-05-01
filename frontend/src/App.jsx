@@ -229,15 +229,11 @@ export default function App() {
 
       if (PublicPage) {
         return (
-          <div className="min-h-screen bg-slate-950 flex justify-center items-center relative overflow-hidden">
-            <div className="relative w-full max-w-[400px] h-[100dvh] flex items-center justify-center">
-              <PublicPage
-                toggleTheme={() => setIsDarkMode(!isDarkMode)}
-                isDarkMode={isDarkMode}
-                onLogin={handleLogin}
-              />
-            </div>
-          </div>
+          <PublicPage
+            toggleTheme={() => setIsDarkMode(!isDarkMode)}
+            isDarkMode={isDarkMode}
+            onLogin={handleLogin}
+          />
         );
       }
     }
@@ -289,7 +285,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 flex justify-center items-center relative overflow-hidden">
       {/* ── Device Frame ── */}
-      <div className="relative w-full max-w-[400px] h-[100dvh] flex items-center justify-center">
+      <div className="relative w-full max-w-[400px] h-[100dvh] flex items-start justify-center">
 
         {/* ── Classic Sidebar Menu (Slide from left) ── */}
         {isMenuOpen && (

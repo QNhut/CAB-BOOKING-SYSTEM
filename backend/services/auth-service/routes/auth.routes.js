@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware, adminAuth } from "../middlewares/auth.middleware.js";
 import {
   healthCheck, register, login, refresh, logout,
-  getMe, getProfile, updateProfile,
+  getMe, getProfile, updateProfile, updateAccount,
   internalGetUserProfile, internalGetDriverProfile, internalVerifyToken,
   adminListUsers, adminUpdateUser, adminDeleteUser,
 } from "../controllers/auth.controller.js";
@@ -23,6 +23,7 @@ router.post("/auth/logout",   logout);
 router.get("/auth/me",      authMiddleware, getMe);
 router.get("/auth/profile", authMiddleware, getProfile);
 router.put("/auth/profile", authMiddleware, updateProfile);
+router.put("/auth/account", authMiddleware, updateAccount);
 
 // Internal (service-to-service)
 router.get( "/internal/profile/user/:accountId",   internalGetUserProfile);
